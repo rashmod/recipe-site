@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { requireAdmin } from "./_utils";
 
 export const list = query({
@@ -18,7 +18,29 @@ export const add = mutation({
   },
   handler: async (ctx, args) => {
     requireAdmin(ctx, args.adminSecret ?? null);
-    await ctx.db.insert("recipes", args);
+    const { adminSecret, ...recipe } = args;
+    await ctx.db.insert("recipes", recipe);
+  },
+});
+
+export const update = mutation({
+  args: {
+    id: v.id("recipes"),
+    title: v.optional(v.string()),
+    ingredients: v.optional(v.string()),
+    instructions: v.optional(v.string()),
+    adminSecret: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    requireAdmin(ctx, args.adminSecret ?? null);
+    const { id, adminSecret, ...updates } = args;
+    const fields = Object.fromEntries(
+      Object.entries(updates).filter(([, value]) => value !== undefined),
+    );
+    if (Object.keys(fields).length === 0) {
+      return;
+    }
+    await ctx.db.patch(id, fields);
   },
 });
 

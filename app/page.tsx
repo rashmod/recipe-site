@@ -10,11 +10,18 @@ export default function Home() {
 		<main className='flex flex-col gap-6 p-6'>
 			<header className='flex items-center justify-between'>
 				<h1 className='text-3xl font-bold text-gray-900'>Recipes</h1>
-				<Link
-					className='text-sm font-medium text-blue-600 underline-offset-2 hover:underline'
-					href='/admin'>
-					Go to admin
-				</Link>
+				<nav className='flex items-center gap-3 text-sm font-medium'>
+					<Link
+						className='text-blue-600 underline-offset-2 hover:underline'
+						href='/admin/login'>
+						Admin login
+					</Link>
+					<Link
+						className='text-blue-600 underline-offset-2 hover:underline'
+						href='/admin'>
+						Admin panel
+					</Link>
+				</nav>
 			</header>
 			{recipes.map((recipe) => {
 				const ingredientItems = recipe.ingredients
