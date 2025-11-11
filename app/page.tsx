@@ -45,19 +45,61 @@ export default function Home() {
 								</h3>
 								<ul className='mt-2 list-disc pl-5 text-gray-700'>
 									{ingredientItems.map(
-										(ingredient, index) => (
-											<li
-												key={`${ingredient.item}-${ingredient.quantity}-${index}`}>
-												<span className='font-medium text-gray-900'>
-													{ingredient.quantity}
-												</span>
-												{ingredient.quantity &&
-												ingredient.item
-													? ' — '
-													: ' '}
-												<span>{ingredient.item}</span>
-											</li>
-										)
+										(ingredient, index) => {
+											const amount =
+												ingredient.quantity?.amount ??
+												undefined;
+											const unit =
+												ingredient.quantity?.unit?.trim() ??
+												'';
+											const hasAmount =
+												typeof amount === 'number';
+											const formattedAmount =
+												hasAmount &&
+												Number.isFinite(amount)
+													? Number.isInteger(amount)
+														? String(amount)
+														: Number(
+																amount.toFixed(
+																	2
+																)
+														  )
+																.toString()
+																.replace(
+																	/\.?0+$/,
+																	''
+																)
+													: '';
+											const quantityText = [
+												formattedAmount,
+												unit,
+											]
+												.filter(
+													(value) =>
+														value &&
+														value.length > 0
+												)
+												.join(' ');
+
+											return (
+												<li
+													key={`${ingredient.item}-${quantityText}-${index}`}>
+													{quantityText.length >
+														0 && (
+														<span className='font-medium text-gray-900'>
+															{quantityText}
+														</span>
+													)}
+													{quantityText.length > 0 &&
+													ingredient.item
+														? ' — '
+														: ' '}
+													<span>
+														{ingredient.item}
+													</span>
+												</li>
+											);
+										}
 									)}
 								</ul>
 							</section>

@@ -2,18 +2,20 @@
 
 import Link from 'next/link';
 import { useMutation, useQuery } from 'convex/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Id } from '../../convex/_generated/dataModel';
 import { api } from '../../convex/_generated/api';
 
 type IngredientInput = {
 	item: string;
-	quantity: string;
+	amount: string;
+	unit: string;
 };
 
 const createEmptyIngredient = (): IngredientInput => ({
 	item: '',
-	quantity: '',
+	amount: '',
+	unit: '',
 });
 
 export default function AdminPage() {
@@ -44,10 +46,10 @@ export default function AdminPage() {
 		setEditingId(null);
 	};
 
-	const updateIngredientField = (
+	const updateIngredientField = <Key extends keyof IngredientInput>(
 		index: number,
-		field: keyof IngredientInput,
-		value: string
+		field: Key,
+		value: IngredientInput[Key]
 	) => {
 		setIngredients((current) =>
 			current.map((ingredient, idx) =>
@@ -68,14 +70,52 @@ export default function AdminPage() {
 	};
 
 	const buildIngredientPayload = () =>
-		ingredients
-			.map(({ item, quantity }) => ({
-				item: item.trim(),
-				quantity: quantity.trim(),
-			}))
-			.filter(
-				({ item, quantity }) => item.length > 0 || quantity.length > 0
-			);
+		ingredients.reduce<
+			Array<{
+				item: string;
+				quantity?: { amount?: number; unit?: string };
+			}>
+		>((acc, ingredient, index) => {
+			const trimmedItem = ingredient.item.trim();
+			const trimmedUnit = ingredient.unit.trim();
+			const trimmedAmount = ingredient.amount.trim();
+
+			const isRowEmpty =
+				trimmedItem.length === 0 &&
+				trimmedUnit.length === 0 &&
+				trimmedAmount.length === 0;
+
+			if (isRowEmpty) {
+				return acc;
+			}
+
+			if (trimmedItem.length === 0) {
+				throw new Error(`Ingredient ${index + 1}: name is required`);
+			}
+
+			let quantity: { amount?: number; unit?: string } | undefined;
+
+			if (trimmedAmount.length > 0) {
+				const parsedAmount = Number(trimmedAmount);
+				if (Number.isNaN(parsedAmount)) {
+					throw new Error(
+						`Ingredient ${index + 1}: amount must be a number`
+					);
+				}
+				quantity = { amount: parsedAmount };
+			}
+
+			if (trimmedUnit.length > 0) {
+				quantity = { ...(quantity ?? {}), unit: trimmedUnit };
+			}
+
+			acc.push({
+				item: trimmedItem,
+				...(quantity ? { quantity } : {}),
+			});
+
+			return acc;
+		}, []);
 
 	const submit = async () => {
 		if (!adminSecret) {
@@ -83,7 +123,17 @@ export default function AdminPage() {
 			return;
 		}
 
-		const ingredientPayload = buildIngredientPayload();
+		let ingredientPayload;
+		try {
+			ingredientPayload = buildIngredientPayload();
+		} catch (error) {
+			if (error instanceof Error) {
+				alert(error.message);
+			} else {
+				alert('Please check the ingredient list for errors.');
+			}
+			return;
+		}
 
 		if (ingredientPayload.length === 0) {
 			alert('Please add at least one ingredient.');
@@ -114,7 +164,12 @@ export default function AdminPage() {
 	const handleEdit = (recipe: {
 		_id: Id<'recipes'>;
 		title: string;
-		ingredients: IngredientInput[] | undefined;
+		ingredients:
+			| Array<{
+					item: string;
+					quantity?: { amount?: number | null; unit?: string | null };
+			  }>
+			| undefined;
 		instructions: string;
 	}) => {
 		setEditingId(recipe._id);
@@ -125,8 +180,13 @@ export default function AdminPage() {
 		setIngredients(
 			ingredientList.length > 0
 				? ingredientList.map((ingredient) => ({
-						item: ingredient.item,
-						quantity: ingredient.quantity,
+						item: ingredient.item ?? '',
+						amount:
+							ingredient.quantity?.amount !== undefined &&
+							ingredient.quantity?.amount !== null
+								? String(ingredient.quantity.amount)
+								: '',
+						unit: ingredient.quantity?.unit ?? '',
 				  }))
 				: [createEmptyIngredient()]
 		);
@@ -184,15 +244,28 @@ export default function AdminPage() {
 						{ingredients.map((ingredient, index) => (
 							<div
 								key={`ingredient-${index}`}
-								className='flex gap-2'>
+								className='flex flex-wrap items-center gap-2'>
 								<input
-									className='w-32 rounded border border-gray-300 p-2'
-									placeholder='Quantity'
-									value={ingredient.quantity}
+									className='w-24 rounded border border-gray-300 p-2'
+									inputMode='decimal'
+									placeholder='Amount'
+									value={ingredient.amount}
 									onChange={(event) =>
 										updateIngredientField(
 											index,
-											'quantity',
+											'amount',
+											event.target.value
+										)
+									}
+								/>
+								<input
+									className='w-28 rounded border border-gray-300 p-2'
+									placeholder='Unit'
+									value={ingredient.unit}
+									onChange={(event) =>
+										updateIngredientField(
+											index,
+											'unit',
 											event.target.value
 										)
 									}
@@ -301,27 +374,87 @@ export default function AdminPage() {
 											<ul className='mt-1 list-disc pl-5'>
 												{recipeIngredients.map(
 													(
-														ingredient: IngredientInput,
+														ingredient: {
+															item: string;
+															quantity?: {
+																amount?:
+																	| number
+																	| null;
+																unit?:
+																	| string
+																	| null;
+															} | null;
+														},
 														index: number
-													) => (
-														<li
-															key={`${ingredient.item}-${ingredient.quantity}-${index}`}>
-															<span className='font-medium text-gray-900'>
-																{
-																	ingredient.quantity
-																}
-															</span>
-															{ingredient.quantity &&
-															ingredient.item
-																? ' — '
-																: ' '}
-															<span>
-																{
-																	ingredient.item
-																}
-															</span>
-														</li>
-													)
+													) => {
+														const amount =
+															ingredient.quantity
+																?.amount ??
+															undefined;
+														const unit =
+															ingredient.quantity?.unit?.trim() ??
+															'';
+														const hasAmount =
+															typeof amount ===
+															'number';
+														const formattedAmount =
+															hasAmount &&
+															Number.isFinite(
+																amount
+															)
+																? Number.isInteger(
+																		amount
+																  )
+																	? String(
+																			amount
+																	  )
+																	: Number(
+																			amount.toFixed(
+																				2
+																			)
+																	  )
+																			.toString()
+																			.replace(
+																				/\.?0+$/,
+																				''
+																			)
+																: '';
+														const quantityText = [
+															formattedAmount,
+															unit,
+														]
+															.filter(
+																(value) =>
+																	value &&
+																	value.length >
+																		0
+															)
+															.join(' ');
+
+														return (
+															<li
+																key={`${ingredient.item}-${quantityText}-${index}`}>
+																{quantityText.length >
+																	0 && (
+																	<span className='font-medium text-gray-900'>
+																		{
+																			quantityText
+																		}
+																	</span>
+																)}
+																{quantityText.length >
+																	0 &&
+																ingredient.item
+																	? ' — '
+																	: ' '}
+																<span>
+																	{
+																		ingredient.item
+																	}
+																</span>
+															</li>
+														);
+													}
 												)}
 											</ul>
 										) : (

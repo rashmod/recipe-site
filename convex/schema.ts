@@ -7,7 +7,12 @@ export default defineSchema({
 		ingredients: v.array(
 			v.object({
 				item: v.string(),
-				quantity: v.string(),
+				quantity: v.optional(
+					v.object({
+						amount: v.optional(v.number()),
+						unit: v.optional(v.string()),
+					})
+				),
 			})
 		),
 		instructions: v.string(),

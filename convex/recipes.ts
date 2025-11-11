@@ -5,7 +5,12 @@ import { requireAdmin } from './_utils';
 const ingredientSchema = v.array(
 	v.object({
 		item: v.string(),
-		quantity: v.string(),
+		quantity: v.optional(
+			v.object({
+				amount: v.optional(v.number()),
+				unit: v.optional(v.string()),
+			})
+		),
 	})
 );
 
@@ -24,8 +29,8 @@ export const add = mutation({
 		adminSecret: v.optional(v.string()),
 	},
 	handler: async (ctx, args) => {
-		requireAdmin(ctx, args.adminSecret ?? null);
 		const { adminSecret, ...recipe } = args;
+		requireAdmin(ctx, adminSecret ?? null);
 		await ctx.db.insert('recipes', recipe);
 	},
 });
@@ -39,8 +44,8 @@ export const update = mutation({
 		adminSecret: v.optional(v.string()),
 	},
 	handler: async (ctx, args) => {
-		requireAdmin(ctx, args.adminSecret ?? null);
 		const { id, adminSecret, ...updates } = args;
+		requireAdmin(ctx, adminSecret ?? null);
 		const fields = Object.fromEntries(
 			Object.entries(updates).filter(([, value]) => value !== undefined)
 		);
