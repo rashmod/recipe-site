@@ -1,13 +1,64 @@
-"use client";
+'use client';
 
-import { useQuery } from "convex/react";
-import { api } from "../convex/_generated/api";
+import Link from 'next/link';
+import { api } from '../convex/_generated/api';
+import { useQuery } from 'convex/react';
 
 export default function Home() {
-  const tasks = useQuery(api.tasks.get);
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      {tasks?.map(({ _id, text }) => <div key={_id}>{text}</div>)}
-    </main>
-  );
+	const recipes = useQuery(api.recipes.list) ?? [];
+	return (
+		<main className='flex flex-col gap-6 p-6'>
+			<header className='flex items-center justify-between'>
+				<h1 className='text-3xl font-bold text-gray-900'>Recipes</h1>
+				<Link
+					className='text-sm font-medium text-blue-600 underline-offset-2 hover:underline'
+					href='/admin'>
+					Go to admin
+				</Link>
+			</header>
+			{recipes.map((recipe) => {
+				const ingredientItems = recipe.ingredients
+					.split('\n')
+					.map((line) => line.trim())
+					.filter(Boolean);
+				const instructionSteps = recipe.instructions
+					.split('\n')
+					.map((line) => line.trim())
+					.filter(Boolean);
+				return (
+					<article
+						key={recipe._id}
+						className='rounded-lg border border-gray-200 bg-white p-6 shadow-sm'>
+						<h2 className='text-2xl font-semibold text-gray-900'>
+							{recipe.title}
+						</h2>
+						{ingredientItems.length > 0 && (
+							<section className='mt-4'>
+								<h3 className='text-lg font-medium text-gray-800'>
+									Ingredients
+								</h3>
+								<ul className='mt-2 list-disc pl-5 text-gray-700'>
+									{ingredientItems.map((item) => (
+										<li key={item}>{item}</li>
+									))}
+								</ul>
+							</section>
+						)}
+						{instructionSteps.length > 0 && (
+							<section className='mt-4'>
+								<h3 className='text-lg font-medium text-gray-800'>
+									Instructions
+								</h3>
+								<ol className='mt-2 list-decimal pl-5 text-gray-700'>
+									{instructionSteps.map((step) => (
+										<li key={step}>{step}</li>
+									))}
+								</ol>
+							</section>
+						)}
+					</article>
+				);
+			})}
+		</main>
+	);
 }
