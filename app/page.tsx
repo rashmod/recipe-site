@@ -24,10 +24,9 @@ export default function Home() {
 				</nav>
 			</header>
 			{recipes.map((recipe) => {
-				const ingredientItems = recipe.ingredients
-					.split('\n')
-					.map((line) => line.trim())
-					.filter(Boolean);
+				const ingredientItems = Array.isArray(recipe.ingredients)
+					? recipe.ingredients
+					: [];
 				const instructionSteps = recipe.instructions
 					.split('\n')
 					.map((line) => line.trim())
@@ -45,9 +44,21 @@ export default function Home() {
 									Ingredients
 								</h3>
 								<ul className='mt-2 list-disc pl-5 text-gray-700'>
-									{ingredientItems.map((item) => (
-										<li key={item}>{item}</li>
-									))}
+									{ingredientItems.map(
+										(ingredient, index) => (
+											<li
+												key={`${ingredient.item}-${ingredient.quantity}-${index}`}>
+												<span className='font-medium text-gray-900'>
+													{ingredient.quantity}
+												</span>
+												{ingredient.quantity &&
+												ingredient.item
+													? ' — '
+													: ' '}
+												<span>{ingredient.item}</span>
+											</li>
+										)
+									)}
 								</ul>
 							</section>
 						)}

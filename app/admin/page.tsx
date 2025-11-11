@@ -2,9 +2,19 @@
 
 import Link from 'next/link';
 import { useMutation, useQuery } from 'convex/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Id } from '../../convex/_generated/dataModel';
 import { api } from '../../convex/_generated/api';
+
+type IngredientInput = {
+	item: string;
+	quantity: string;
+};
+
+const createEmptyIngredient = (): IngredientInput => ({
+	item: '',
+	quantity: '',
+});
 
 export default function AdminPage() {
 	const recipes = useQuery(api.recipes.list) ?? [];
@@ -19,7 +29,9 @@ export default function AdminPage() {
 	const removeRecipe = useMutation(api.recipes.remove);
 
 	const [title, setTitle] = useState('');
-	const [ingredients, setIngredients] = useState('');
+	const [ingredients, setIngredients] = useState<IngredientInput[]>([
+		createEmptyIngredient(),
+	]);
 	const [instructions, setInstructions] = useState('');
 	const [editingId, setEditingId] = useState<Id<'recipes'> | null>(null);
 
@@ -27,31 +39,73 @@ export default function AdminPage() {
 
 	const resetForm = () => {
 		setTitle('');
-		setIngredients('');
+		setIngredients([createEmptyIngredient()]);
 		setInstructions('');
 		setEditingId(null);
 	};
 
-	const apiPayload = {
-		title,
-		ingredients,
-		instructions,
+	const updateIngredientField = (
+		index: number,
+		field: keyof IngredientInput,
+		value: string
+	) => {
+		setIngredients((current) =>
+			current.map((ingredient, idx) =>
+				idx === index ? { ...ingredient, [field]: value } : ingredient
+			)
+		);
 	};
+
+	const addIngredientRow = () => {
+		setIngredients((current) => [...current, createEmptyIngredient()]);
+	};
+
+	const removeIngredientRow = (index: number) => {
+		setIngredients((current) => {
+			const next = current.filter((_, idx) => idx !== index);
+			return next.length > 0 ? next : [createEmptyIngredient()];
+		});
+	};
+
+	const buildIngredientPayload = () =>
+		ingredients
+			.map(({ item, quantity }) => ({
+				item: item.trim(),
+				quantity: quantity.trim(),
+			}))
+			.filter(
+				({ item, quantity }) => item.length > 0 || quantity.length > 0
+			);
 
 	const submit = async () => {
 		if (!adminSecret) {
 			alert('Please login first.');
 			return;
 		}
+
+		const ingredientPayload = buildIngredientPayload();
+
+		if (ingredientPayload.length === 0) {
+			alert('Please add at least one ingredient.');
+			return;
+		}
+
 		if (isEditing && editingId) {
 			await updateRecipe({
 				id: editingId,
-				...apiPayload,
+				title,
+				ingredients: ingredientPayload,
+				instructions,
 				adminSecret,
 			});
 			alert('Recipe updated');
 		} else {
-			await addRecipe({ ...apiPayload, adminSecret });
+			await addRecipe({
+				title,
+				ingredients: ingredientPayload,
+				instructions,
+				adminSecret,
+			});
 			alert('Recipe added');
 		}
 		resetForm();
@@ -60,12 +114,22 @@ export default function AdminPage() {
 	const handleEdit = (recipe: {
 		_id: Id<'recipes'>;
 		title: string;
-		ingredients: string;
+		ingredients: IngredientInput[] | undefined;
 		instructions: string;
 	}) => {
 		setEditingId(recipe._id);
 		setTitle(recipe.title);
-		setIngredients(recipe.ingredients);
+		const ingredientList = Array.isArray(recipe.ingredients)
+			? recipe.ingredients
+			: [];
+		setIngredients(
+			ingredientList.length > 0
+				? ingredientList.map((ingredient) => ({
+						item: ingredient.item,
+						quantity: ingredient.quantity,
+				  }))
+				: [createEmptyIngredient()]
+		);
 		setInstructions(recipe.instructions);
 	};
 
@@ -116,13 +180,50 @@ export default function AdminPage() {
 					<label className='text-sm font-medium text-gray-800'>
 						Ingredients
 					</label>
-					<textarea
-						className='rounded border border-gray-300 p-2'
-						placeholder='Ingredients'
-						rows={4}
-						value={ingredients}
-						onChange={(event) => setIngredients(event.target.value)}
-					/>
+					<div className='flex flex-col gap-3'>
+						{ingredients.map((ingredient, index) => (
+							<div
+								key={`ingredient-${index}`}
+								className='flex gap-2'>
+								<input
+									className='w-32 rounded border border-gray-300 p-2'
+									placeholder='Quantity'
+									value={ingredient.quantity}
+									onChange={(event) =>
+										updateIngredientField(
+											index,
+											'quantity',
+											event.target.value
+										)
+									}
+								/>
+								<input
+									className='flex-1 rounded border border-gray-300 p-2'
+									placeholder='Ingredient name'
+									value={ingredient.item}
+									onChange={(event) =>
+										updateIngredientField(
+											index,
+											'item',
+											event.target.value
+										)
+									}
+								/>
+								<button
+									className='rounded border border-gray-300 px-2 text-sm text-gray-600 hover:bg-gray-100'
+									onClick={() => removeIngredientRow(index)}
+									type='button'>
+									Remove
+								</button>
+							</div>
+						))}
+						<button
+							className='self-start rounded border border-blue-600 px-3 py-1 text-sm font-medium text-blue-600 hover:bg-blue-50'
+							onClick={addIngredientRow}
+							type='button'>
+							Add ingredient
+						</button>
+					</div>
 				</div>
 				<div className='flex flex-col gap-2'>
 					<label className='text-sm font-medium text-gray-800'>
@@ -141,13 +242,15 @@ export default function AdminPage() {
 				<div className='flex items-center gap-2'>
 					<button
 						className='rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700'
-						onClick={submit}>
+						onClick={submit}
+						type='button'>
 						{isEditing ? 'Update recipe' : 'Add recipe'}
 					</button>
 					{isEditing && (
 						<button
 							className='rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100'
-							onClick={resetForm}>
+							onClick={resetForm}
+							type='button'>
 							Cancel
 						</button>
 					)}
@@ -161,43 +264,81 @@ export default function AdminPage() {
 					<p className='text-sm text-gray-600'>No recipes yet.</p>
 				) : (
 					<ul className='flex flex-col gap-4'>
-						{recipes.map((recipe) => (
-							<li
-								key={recipe._id}
-								className='flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm'>
-								<div className='flex items-center justify-between'>
-									<h3 className='text-lg font-medium text-gray-900'>
-										{recipe.title}
-									</h3>
-									<div className='flex items-center gap-2'>
-										<button
-											className='rounded border border-blue-600 px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50'
-											onClick={() => handleEdit(recipe)}>
-											Edit
-										</button>
-										<button
-											className='rounded border border-red-600 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50'
-											onClick={() =>
-												handleDelete(recipe._id)
-											}>
-											Delete
-										</button>
+						{recipes.map((recipe) => {
+							const recipeIngredients = Array.isArray(
+								recipe.ingredients
+							)
+								? recipe.ingredients
+								: [];
+							return (
+								<li
+									key={recipe._id}
+									className='flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm'>
+									<div className='flex items-center justify-between'>
+										<h3 className='text-lg font-medium text-gray-900'>
+											{recipe.title}
+										</h3>
+										<div className='flex items-center gap-2'>
+											<button
+												className='rounded border border-blue-600 px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50'
+												onClick={() =>
+													handleEdit(recipe)
+												}>
+												Edit
+											</button>
+											<button
+												className='rounded border border-red-600 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50'
+												onClick={() =>
+													handleDelete(recipe._id)
+												}>
+												Delete
+											</button>
+										</div>
 									</div>
-								</div>
-								<div className='text-sm text-gray-600'>
-									<strong>Ingredients:</strong>
-									<p className='whitespace-pre-line'>
-										{recipe.ingredients}
-									</p>
-								</div>
-								<div className='text-sm text-gray-600'>
-									<strong>Instructions:</strong>
-									<p className='whitespace-pre-line'>
-										{recipe.instructions}
-									</p>
-								</div>
-							</li>
-						))}
+									<div className='text-sm text-gray-600'>
+										<strong>Ingredients:</strong>
+										{recipeIngredients.length > 0 ? (
+											<ul className='mt-1 list-disc pl-5'>
+												{recipeIngredients.map(
+													(
+														ingredient: IngredientInput,
+														index: number
+													) => (
+														<li
+															key={`${ingredient.item}-${ingredient.quantity}-${index}`}>
+															<span className='font-medium text-gray-900'>
+																{
+																	ingredient.quantity
+																}
+															</span>
+															{ingredient.quantity &&
+															ingredient.item
+																? ' — '
+																: ' '}
+															<span>
+																{
+																	ingredient.item
+																}
+															</span>
+														</li>
+													)
+												)}
+											</ul>
+										) : (
+											<p className='mt-1 text-gray-500'>
+												No ingredients listed.
+											</p>
+										)}
+									</div>
+									<div className='text-sm text-gray-600'>
+										<strong>Instructions:</strong>
+										<p className='whitespace-pre-line'>
+											{recipe.instructions}
+										</p>
+									</div>
+								</li>
+							);
+						})}
 					</ul>
 				)}
 			</section>

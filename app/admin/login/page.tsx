@@ -52,11 +52,6 @@ export default function AdminLoginPage() {
 					type='submit'>
 					Save password
 				</button>
-				{status === 'saved' && (
-					<p className='text-sm text-green-600'>
-						Password saved locally.
-					</p>
-				)}
 			</form>
 		</main>
 	);
