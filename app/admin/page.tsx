@@ -30,6 +30,12 @@ export default function AdminPage() {
 	const addRecipe = useMutation(api.recipes.add);
 	const updateRecipe = useMutation(api.recipes.update);
 	const removeRecipe = useMutation(api.recipes.remove);
+	const removeIngredient = useMutation(api.recipes.removeIngredient);
+	const removeUnusedIngredients = useMutation(
+		api.recipes.removeUnusedIngredients
+	);
+
+	const unusedIngredients = useQuery(api.recipes.listUnusedIngredients) ?? [];
 
 	const [title, setTitle] = useState('');
 	const [ingredients, setIngredients] = useState<IngredientInput[]>([
@@ -206,6 +212,50 @@ export default function AdminPage() {
 			return;
 		}
 		await removeRecipe({ id, adminSecret });
+	};
+
+	const handleRemoveIngredient = async (id: Id<'ingredients'>) => {
+		if (!adminSecret) {
+			alert('Please login first.');
+			return;
+		}
+		const confirmed = window.confirm(
+			'Are you sure you want to delete this ingredient? This action cannot be undone.'
+		);
+		if (!confirmed) {
+			return;
+		}
+		try {
+			await removeIngredient({ id, adminSecret });
+		} catch (error) {
+			alert(
+				error instanceof Error
+					? error.message
+					: 'Failed to delete ingredient'
+			);
+		}
+	};
+
+	const handleRemoveUnusedIngredients = async () => {
+		if (!adminSecret) {
+			alert('Please login first.');
+			return;
+		}
+		if (unusedIngredients.length === 0) {
+			alert('No unused ingredients to remove.');
+			return;
+		}
+		const confirmed = window.confirm(
+			`Are you sure you want to delete ${
+				unusedIngredients.length
+			} unused ingredient${
+				unusedIngredients.length !== 1 ? 's' : ''
+			}? This action cannot be undone.`
+		);
+		if (!confirmed) {
+			return;
+		}
+		await removeUnusedIngredients({ adminSecret });
 	};
 
 	return (
@@ -474,6 +524,56 @@ export default function AdminPage() {
 							);
 						})}
 					</ul>
+				)}
+			</section>
+
+			{/* Unused Ingredients Section */}
+			<section className='rounded-lg border border-gray-200 bg-white p-6 shadow-sm'>
+				<div className='flex items-center justify-between mb-4'>
+					<div>
+						<h2 className='text-xl font-semibold text-gray-900'>
+							Unused Ingredients
+						</h2>
+						<p className='text-sm text-gray-600 mt-1'>
+							Ingredients that are not used in any recipe
+						</p>
+					</div>
+					{unusedIngredients.length > 0 && (
+						<button
+							onClick={handleRemoveUnusedIngredients}
+							className='px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium'>
+							Delete All ({unusedIngredients.length})
+						</button>
+					)}
+				</div>
+
+				{unusedIngredients.length > 0 ? (
+					<div className='space-y-2'>
+						<ul className='flex flex-wrap gap-2'>
+							{unusedIngredients.map((ingredient) => (
+								<li
+									key={ingredient._id}
+									className='flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-md text-sm group'>
+									<span>{ingredient.item}</span>
+									<button
+										onClick={() =>
+											handleRemoveIngredient(
+												ingredient._id
+											)
+										}
+										className='opacity-0 group-hover:opacity-100 transition-opacity text-red-600 hover:text-red-700 font-medium'
+										title='Delete ingredient'>
+										×
+									</button>
+								</li>
+							))}
+						</ul>
+					</div>
+				) : (
+					<p className='text-sm text-gray-500'>
+						No unused ingredients. All ingredients are being used in
+						recipes.
+					</p>
 				)}
 			</section>
 		</main>

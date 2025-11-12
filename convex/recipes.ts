@@ -202,6 +202,90 @@ export const remove = mutation({
 	},
 });
 
+// Query to find unused ingredients
+export const listUnusedIngredients = query({
+	args: {},
+	handler: async (ctx) => {
+		// Get all ingredients
+		const allIngredients = await ctx.db.query('ingredients').collect();
+
+		// Get all recipes and collect all ingredient IDs that are used
+		const allRecipes = await ctx.db.query('recipes').collect();
+		const usedIngredientIds = new Set<Id<'ingredients'>>();
+		for (const recipe of allRecipes) {
+			for (const ing of recipe.ingredients) {
+				usedIngredientIds.add(ing.item);
+			}
+		}
+
+		// Filter out ingredients that are used
+		const unusedIngredients = allIngredients.filter(
+			(ing) => !usedIngredientIds.has(ing._id)
+		);
+
+		return unusedIngredients.map((ing) => ({
+			_id: ing._id,
+			item: ing.item,
+		}));
+	},
+});
+
+// Mutation to delete a single ingredient
+export const removeIngredient = mutation({
+	args: {
+		id: v.id('ingredients'),
+		adminSecret: v.optional(v.string()),
+	},
+	handler: async (ctx, args) => {
+		requireAdmin(ctx, args.adminSecret ?? null);
+
+		// Check if ingredient is used in any recipe
+		const allRecipes = await ctx.db.query('recipes').collect();
+		const isUsed = allRecipes.some((recipe) =>
+			recipe.ingredients.some((ing) => ing.item === args.id)
+		);
+
+		if (isUsed) {
+			throw new Error('Cannot delete ingredient that is used in recipes');
+		}
+
+		await ctx.db.delete(args.id);
+	},
+});
+
+// Mutation to delete unused ingredients
+export const removeUnusedIngredients = mutation({
+	args: { adminSecret: v.optional(v.string()) },
+	handler: async (ctx, args) => {
+		requireAdmin(ctx, args.adminSecret ?? null);
+
+		// Get all ingredients
+		const allIngredients = await ctx.db.query('ingredients').collect();
+
+		// Get all recipes and collect all ingredient IDs that are used
+		const allRecipes = await ctx.db.query('recipes').collect();
+		const usedIngredientIds = new Set<Id<'ingredients'>>();
+		for (const recipe of allRecipes) {
+			for (const ing of recipe.ingredients) {
+				usedIngredientIds.add(ing.item);
+			}
+		}
+
+		// Find and delete unused ingredients
+		const unusedIngredients = allIngredients.filter(
+			(ing) => !usedIngredientIds.has(ing._id)
+		);
+
+		let deletedCount = 0;
+		for (const ingredient of unusedIngredients) {
+			await ctx.db.delete(ingredient._id);
+			deletedCount++;
+		}
+
+		return { deletedCount };
+	},
+});
+
 // Internal functions for migration
 export const findIngredientByName = internalQuery({
 	args: { item: v.string() },
