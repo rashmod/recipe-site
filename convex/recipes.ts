@@ -13,6 +13,7 @@ import { requireAdmin } from './_utils';
 const ingredientInputSchema = v.array(
 	v.object({
 		item: v.string(),
+		forms: v.optional(v.array(v.string())), // Array of form names (strings)
 		quantity: v.optional(
 			v.object({
 				amount: v.optional(v.number()),
@@ -46,6 +47,30 @@ async function getOrCreateIngredient(
 	return await ctx.db.insert('ingredients', { item: trimmedName });
 }
 
+// Helper function to get or create an ingredient form by name
+async function getOrCreateIngredientForm(
+	ctx: MutationCtx,
+	formName: string
+): Promise<Id<'ingredientForm'>> {
+	const trimmedName = formName.trim();
+	if (!trimmedName) {
+		throw new Error('Form name cannot be empty');
+	}
+
+	// Try to find existing form
+	const existing = await ctx.db
+		.query('ingredientForm')
+		.filter((q) => q.eq(q.field('form'), trimmedName))
+		.first();
+
+	if (existing) {
+		return existing._id;
+	}
+
+	// Create new form
+	return await ctx.db.insert('ingredientForm', { form: trimmedName });
+}
+
 export const list = query({
 	args: {},
 	handler: async (ctx) => {
@@ -57,8 +82,17 @@ export const list = query({
 				const populatedIngredients = await Promise.all(
 					recipe.ingredients.map(async (ing) => {
 						const ingredient = await ctx.db.get(ing.item);
+						const forms = ing.forms
+							? await Promise.all(
+									ing.forms.map(async (formId) => {
+										const form = await ctx.db.get(formId);
+										return form?.form ?? 'Unknown';
+									})
+							  )
+							: undefined;
 						return {
 							item: ingredient?.item ?? 'Unknown',
+							forms: forms,
 							quantity: ing.quantity,
 						};
 					})
@@ -105,8 +139,17 @@ export const getRecipesByIngredient = query({
 				const populatedIngredients = await Promise.all(
 					recipe.ingredients.map(async (ing) => {
 						const ingEntity = await ctx.db.get(ing.item);
+						const forms = ing.forms
+							? await Promise.all(
+									ing.forms.map(async (formId) => {
+										const form = await ctx.db.get(formId);
+										return form?.form ?? 'Unknown';
+									})
+							  )
+							: undefined;
 						return {
 							item: ingEntity?.item ?? 'Unknown',
+							forms: forms,
 							quantity: ing.quantity,
 						};
 					})
@@ -135,8 +178,16 @@ export const add = mutation({
 		const ingredientRefs = await Promise.all(
 			ingredients.map(async (ing) => {
 				const ingredientId = await getOrCreateIngredient(ctx, ing.item);
+				const formIds = ing.forms
+					? await Promise.all(
+							ing.forms.map((formName) =>
+								getOrCreateIngredientForm(ctx, formName)
+							)
+					  )
+					: undefined;
 				return {
 					item: ingredientId,
+					forms: formIds,
 					quantity: ing.quantity,
 				};
 			})
@@ -174,8 +225,16 @@ export const update = mutation({
 						ctx,
 						ing.item
 					);
+					const formIds = ing.forms
+						? await Promise.all(
+								ing.forms.map((formName) =>
+									getOrCreateIngredientForm(ctx, formName)
+								)
+						  )
+						: undefined;
 					return {
 						item: ingredientId,
+						forms: formIds,
 						quantity: ing.quantity,
 					};
 				})
@@ -305,12 +364,33 @@ export const createIngredient = internalMutation({
 	},
 });
 
+export const findIngredientFormByName = internalQuery({
+	args: { form: v.string() },
+	handler: async (ctx, args) => {
+		const ingredientForm = await ctx.db
+			.query('ingredientForm')
+			.filter((q) => q.eq(q.field('form'), args.form.trim()))
+			.first();
+		return ingredientForm?._id;
+	},
+});
+
+export const createIngredientForm = internalMutation({
+	args: { form: v.string() },
+	handler: async (ctx, args) => {
+		return await ctx.db.insert('ingredientForm', {
+			form: args.form.trim(),
+		});
+	},
+});
+
 export const createRecipe = internalMutation({
 	args: {
 		title: v.string(),
 		ingredients: v.array(
 			v.object({
 				item: v.id('ingredients'),
+				forms: v.optional(v.array(v.id('ingredientForm'))),
 				quantity: v.optional(
 					v.object({
 						amount: v.optional(v.number()),
@@ -323,5 +403,39 @@ export const createRecipe = internalMutation({
 	},
 	handler: async (ctx, args) => {
 		return await ctx.db.insert('recipes', args);
+	},
+});
+
+// Internal mutations for clearing database (for seeding)
+export const deleteAllRecipes = internalMutation({
+	args: {},
+	handler: async (ctx) => {
+		const recipes = await ctx.db.query('recipes').collect();
+		for (const recipe of recipes) {
+			await ctx.db.delete(recipe._id);
+		}
+		return { deletedCount: recipes.length };
+	},
+});
+
+export const deleteAllIngredients = internalMutation({
+	args: {},
+	handler: async (ctx) => {
+		const ingredients = await ctx.db.query('ingredients').collect();
+		for (const ingredient of ingredients) {
+			await ctx.db.delete(ingredient._id);
+		}
+		return { deletedCount: ingredients.length };
+	},
+});
+
+export const deleteAllIngredientForms = internalMutation({
+	args: {},
+	handler: async (ctx) => {
+		const forms = await ctx.db.query('ingredientForm').collect();
+		for (const form of forms) {
+			await ctx.db.delete(form._id);
+		}
+		return { deletedCount: forms.length };
 	},
 });

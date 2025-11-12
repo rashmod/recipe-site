@@ -97,6 +97,21 @@ async function main() {
 	console.log('🚀 Starting migration...\n');
 
 	try {
+		// Step 0: Clear all existing data
+		console.log('🗑️  Step 0: Clearing existing data...');
+		const clearResult = (await (
+			client as unknown as {
+				action: (path: string, args: unknown) => Promise<unknown>;
+			}
+		).action('migrate:clearAllData', {})) as {
+			recipes: number;
+			ingredients: number;
+			forms: number;
+		};
+		console.log(
+			`   ✅ Cleared ${clearResult.recipes} recipes, ${clearResult.ingredients} ingredients, ${clearResult.forms} forms\n`
+		);
+
 		// Step 1: Import ingredients
 		console.log('📦 Step 1: Importing ingredients...');
 		const ingredientsPath = path.join(__dirname, '..', 'ingredients.jsonl');

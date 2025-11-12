@@ -10,12 +10,14 @@ type IngredientInput = {
 	item: string;
 	amount: string;
 	unit: string;
+	forms: string[]; // Array of form names
 };
 
 const createEmptyIngredient = (): IngredientInput => ({
 	item: '',
 	amount: '',
 	unit: '',
+	forms: [],
 });
 
 export default function AdminPage() {
@@ -80,6 +82,7 @@ export default function AdminPage() {
 		ingredients.reduce<
 			Array<{
 				item: string;
+				forms?: string[];
 				quantity?: { amount?: number; unit?: string };
 			}>
 		>((acc, ingredient, index) => {
@@ -90,7 +93,8 @@ export default function AdminPage() {
 			const isRowEmpty =
 				trimmedItem.length === 0 &&
 				trimmedUnit.length === 0 &&
-				trimmedAmount.length === 0;
+				trimmedAmount.length === 0 &&
+				ingredient.forms.length === 0;
 
 			if (isRowEmpty) {
 				return acc;
@@ -116,8 +120,13 @@ export default function AdminPage() {
 				quantity = { ...(quantity ?? {}), unit: trimmedUnit };
 			}
 
+			const trimmedForms = ingredient.forms
+				.map((f) => f.trim())
+				.filter((f) => f.length > 0);
+
 			acc.push({
 				item: trimmedItem,
+				...(trimmedForms.length > 0 ? { forms: trimmedForms } : {}),
 				...(quantity ? { quantity } : {}),
 			});
 
@@ -174,6 +183,7 @@ export default function AdminPage() {
 		ingredients:
 			| Array<{
 					item: string;
+					forms?: string[] | null;
 					quantity?: { amount?: number | null; unit?: string | null };
 			  }>
 			| undefined;
@@ -194,6 +204,7 @@ export default function AdminPage() {
 								? String(ingredient.quantity.amount)
 								: '',
 						unit: ingredient.quantity?.unit ?? '',
+						forms: ingredient.forms ?? [],
 				  }))
 				: [createEmptyIngredient()]
 		);
@@ -295,50 +306,64 @@ export default function AdminPage() {
 						{ingredients.map((ingredient, index) => (
 							<div
 								key={`ingredient-${index}`}
-								className='flex flex-wrap items-center gap-2'>
+								className='flex flex-col gap-2 p-3 border border-gray-200 rounded-md'>
+								<div className='flex flex-wrap items-center gap-2'>
+									<input
+										className='w-24 rounded border border-gray-300 p-2'
+										inputMode='decimal'
+										placeholder='Amount'
+										value={ingredient.amount}
+										onChange={(event) =>
+											updateIngredientField(
+												index,
+												'amount',
+												event.target.value
+											)
+										}
+									/>
+									<input
+										className='w-28 rounded border border-gray-300 p-2'
+										placeholder='Unit'
+										value={ingredient.unit}
+										onChange={(event) =>
+											updateIngredientField(
+												index,
+												'unit',
+												event.target.value
+											)
+										}
+									/>
+									<input
+										className='flex-1 rounded border border-gray-300 p-2'
+										placeholder='Ingredient name'
+										value={ingredient.item}
+										onChange={(event) =>
+											updateIngredientField(
+												index,
+												'item',
+												event.target.value
+											)
+										}
+									/>
+									<button
+										className='rounded border border-gray-300 px-2 text-sm text-gray-600 hover:bg-gray-100'
+										onClick={() => removeIngredientRow(index)}
+										type='button'>
+										Remove
+									</button>
+								</div>
 								<input
-									className='w-24 rounded border border-gray-300 p-2'
-									inputMode='decimal'
-									placeholder='Amount'
-									value={ingredient.amount}
-									onChange={(event) =>
-										updateIngredientField(
-											index,
-											'amount',
-											event.target.value
-										)
-									}
+									className='w-full rounded border border-gray-300 p-2 text-sm'
+									placeholder='Forms (comma-separated, e.g., diced, chopped, minced)'
+									value={ingredient.forms.join(', ')}
+									onChange={(event) => {
+										const forms = event.target.value
+											.split(',')
+											.map((f) => f.trim())
+											.filter((f) => f.length > 0);
+										updateIngredientField(index, 'forms', forms);
+									}}
 								/>
-								<input
-									className='w-28 rounded border border-gray-300 p-2'
-									placeholder='Unit'
-									value={ingredient.unit}
-									onChange={(event) =>
-										updateIngredientField(
-											index,
-											'unit',
-											event.target.value
-										)
-									}
-								/>
-								<input
-									className='flex-1 rounded border border-gray-300 p-2'
-									placeholder='Ingredient name'
-									value={ingredient.item}
-									onChange={(event) =>
-										updateIngredientField(
-											index,
-											'item',
-											event.target.value
-										)
-									}
-								/>
-								<button
-									className='rounded border border-gray-300 px-2 text-sm text-gray-600 hover:bg-gray-100'
-									onClick={() => removeIngredientRow(index)}
-									type='button'>
-									Remove
-								</button>
 							</div>
 						))}
 						<button
@@ -427,6 +452,7 @@ export default function AdminPage() {
 													(
 														ingredient: {
 															item: string;
+															forms?: string[] | null;
 															quantity?: {
 																amount?:
 																	| number
@@ -482,6 +508,12 @@ export default function AdminPage() {
 															)
 															.join(' ');
 
+														const formsText =
+															ingredient.forms &&
+															ingredient.forms.length > 0
+																? ` (${ingredient.forms.join(', ')})`
+																: '';
+
 														return (
 															<li
 																key={`${ingredient.item}-${quantityText}-${index}`}>
@@ -502,6 +534,11 @@ export default function AdminPage() {
 																	{
 																		ingredient.item
 																	}
+																	{formsText && (
+																		<span className='text-gray-500 italic'>
+																			{formsText}
+																		</span>
+																	)}
 																</span>
 															</li>
 														);

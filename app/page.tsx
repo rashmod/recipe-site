@@ -244,6 +244,15 @@ export default function Home() {
 																	)
 																	.join(' ');
 
+															const formsText =
+																ingredient.forms &&
+																ingredient.forms
+																	.length > 0
+																	? ` (${ingredient.forms.join(
+																			', '
+																	  )})`
+																	: '';
+
 															return (
 																<li
 																	key={`${ingredient.item}-${quantityText}-${index}`}>
@@ -264,6 +273,13 @@ export default function Home() {
 																		{
 																			ingredient.item
 																		}
+																		{formsText && (
+																			<span className='text-gray-500 italic'>
+																				{
+																					formsText
+																				}
+																			</span>
+																		)}
 																	</span>
 																</li>
 															);

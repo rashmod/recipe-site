@@ -7,6 +7,7 @@ export default defineSchema({
 		ingredients: v.array(
 			v.object({
 				item: v.id('ingredients'),
+				forms: v.optional(v.array(v.id('ingredientForm'))),
 				quantity: v.optional(
 					v.object({
 						amount: v.optional(v.number()),
@@ -20,5 +21,9 @@ export default defineSchema({
 
 	ingredients: defineTable({
 		item: v.string(),
+	}),
+
+	ingredientForm: defineTable({
+		form: v.string(),
 	}),
 });
