@@ -162,6 +162,21 @@ export const searchIngredients = query({
 	},
 });
 
+export const searchUnits = query({
+	args: { searchTerm: v.string() },
+	handler: async (ctx, args) => {
+		if (!args.searchTerm.trim()) {
+			return [];
+		}
+		const searchLower = args.searchTerm.toLowerCase().trim();
+		const allUnits = await ctx.db.query('units').collect();
+		return allUnits
+			.filter((unit) => unit.unit.toLowerCase().includes(searchLower))
+			.map((unit) => unit.unit)
+			.sort();
+	},
+});
+
 export const getRecipesByIngredient = query({
 	args: { item: v.string() },
 	handler: async (ctx, args) => {

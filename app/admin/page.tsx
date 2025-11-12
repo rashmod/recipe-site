@@ -54,6 +54,40 @@ function IngredientSuggestions({
 	);
 }
 
+// Unit Suggestions Component
+function UnitSuggestions({
+	searchTerm,
+	onSelect,
+}: {
+	searchTerm: string;
+	onSelect: (unit: string) => void;
+}) {
+	const suggestions =
+		useQuery(api.recipes.searchUnits, {
+			searchTerm,
+		}) ?? [];
+
+	if (suggestions.length === 0) {
+		return null;
+	}
+
+	return (
+		<ul className='absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto'>
+			{suggestions.map((suggestion, idx) => (
+				<li
+					key={idx}
+					className='px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm'
+					onMouseDown={(e) => {
+						e.preventDefault(); // Prevent input blur
+						onSelect(suggestion);
+					}}>
+					{suggestion}
+				</li>
+			))}
+		</ul>
+	);
+}
+
 export default function AdminPage() {
 	const recipes = useQuery(api.recipes.list) ?? [];
 
@@ -92,6 +126,12 @@ export default function AdminPage() {
 		number | null
 	>(null);
 	const [suggestionSearchTerms, setSuggestionSearchTerms] = useState<
+		Record<number, string>
+	>({});
+	const [activeUnitSuggestionIndex, setActiveUnitSuggestionIndex] = useState<
+		number | null
+	>(null);
+	const [unitSuggestionSearchTerms, setUnitSuggestionSearchTerms] = useState<
 		Record<number, string>
 	>({});
 
@@ -454,18 +494,83 @@ export default function AdminPage() {
 											)
 										}
 									/>
-									<input
-										className='w-28 rounded border border-gray-300 p-2'
-										placeholder='Unit'
-										value={ingredient.unit}
-										onChange={(event) =>
-											updateIngredientField(
-												index,
-												'unit',
-												event.target.value
-											)
-										}
-									/>
+									<div className='w-28 relative'>
+										<input
+											className='w-full rounded border border-gray-300 p-2'
+											placeholder='Unit'
+											value={ingredient.unit}
+											onChange={(event) => {
+												const value =
+													event.target.value;
+												updateIngredientField(
+													index,
+													'unit',
+													value
+												);
+												setUnitSuggestionSearchTerms(
+													(prev) => ({
+														...prev,
+														[index]: value,
+													})
+												);
+												setActiveUnitSuggestionIndex(
+													value.trim().length > 0
+														? index
+														: null
+												);
+											}}
+											onFocus={() => {
+												if (
+													ingredient.unit.trim()
+														.length > 0
+												) {
+													setActiveUnitSuggestionIndex(
+														index
+													);
+												}
+											}}
+											onBlur={() => {
+												// Delay to allow click on suggestion
+												setTimeout(() => {
+													setActiveUnitSuggestionIndex(
+														null
+													);
+												}, 200);
+											}}
+										/>
+										{activeUnitSuggestionIndex === index &&
+											unitSuggestionSearchTerms[index] &&
+											unitSuggestionSearchTerms[
+												index
+											].trim().length > 0 && (
+												<UnitSuggestions
+													searchTerm={
+														unitSuggestionSearchTerms[
+															index
+														]
+													}
+													onSelect={(
+														selectedUnit
+													) => {
+														updateIngredientField(
+															index,
+															'unit',
+															selectedUnit
+														);
+														setUnitSuggestionSearchTerms(
+															(prev) => ({
+																...prev,
+																[index]:
+																	selectedUnit,
+															})
+														);
+														setActiveUnitSuggestionIndex(
+															null
+														);
+													}}
+												/>
+											)}
+									</div>
 									<div className='flex-1 relative'>
 										<input
 											className='w-full rounded border border-gray-300 p-2'
