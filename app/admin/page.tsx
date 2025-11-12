@@ -20,6 +20,40 @@ const createEmptyIngredient = (): IngredientInput => ({
 	forms: [],
 });
 
+// Ingredient Suggestions Component
+function IngredientSuggestions({
+	searchTerm,
+	onSelect,
+}: {
+	searchTerm: string;
+	onSelect: (item: string) => void;
+}) {
+	const suggestions =
+		useQuery(api.recipes.searchIngredients, {
+			searchTerm,
+		}) ?? [];
+
+	if (suggestions.length === 0) {
+		return null;
+	}
+
+	return (
+		<ul className='absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto'>
+			{suggestions.map((suggestion, idx) => (
+				<li
+					key={idx}
+					className='px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm'
+					onMouseDown={(e) => {
+						e.preventDefault(); // Prevent input blur
+						onSelect(suggestion);
+					}}>
+					{suggestion}
+				</li>
+			))}
+		</ul>
+	);
+}
+
 export default function AdminPage() {
 	const recipes = useQuery(api.recipes.list) ?? [];
 
@@ -44,9 +78,8 @@ export default function AdminPage() {
 	const removeUnusedUnits = useMutation(api.recipes.removeUnusedUnits);
 
 	const unusedIngredients = useQuery(api.recipes.listUnusedIngredients) ?? [];
-	const unusedIngredientForms = useQuery(
-		api.recipes.listUnusedIngredientForms
-	) ?? [];
+	const unusedIngredientForms =
+		useQuery(api.recipes.listUnusedIngredientForms) ?? [];
 	const unusedUnits = useQuery(api.recipes.listUnusedUnits) ?? [];
 
 	const [title, setTitle] = useState('');
@@ -55,6 +88,12 @@ export default function AdminPage() {
 	]);
 	const [instructions, setInstructions] = useState('');
 	const [editingId, setEditingId] = useState<Id<'recipes'> | null>(null);
+	const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<
+		number | null
+	>(null);
+	const [suggestionSearchTerms, setSuggestionSearchTerms] = useState<
+		Record<number, string>
+	>({});
 
 	const isEditing = useMemo(() => editingId !== null, [editingId]);
 
@@ -316,9 +355,7 @@ export default function AdminPage() {
 			await removeUnit({ id, adminSecret });
 		} catch (error) {
 			alert(
-				error instanceof Error
-					? error.message
-					: 'Failed to delete unit'
+				error instanceof Error ? error.message : 'Failed to delete unit'
 			);
 		}
 	};
@@ -333,9 +370,9 @@ export default function AdminPage() {
 			return;
 		}
 		const confirmed = window.confirm(
-			`Are you sure you want to delete ${
-				unusedUnits.length
-			} unused unit${unusedUnits.length !== 1 ? 's' : ''}? This action cannot be undone.`
+			`Are you sure you want to delete ${unusedUnits.length} unused unit${
+				unusedUnits.length !== 1 ? 's' : ''
+			}? This action cannot be undone.`
 		);
 		if (!confirmed) {
 			return;
@@ -429,21 +466,87 @@ export default function AdminPage() {
 											)
 										}
 									/>
-									<input
-										className='flex-1 rounded border border-gray-300 p-2'
-										placeholder='Ingredient name'
-										value={ingredient.item}
-										onChange={(event) =>
-											updateIngredientField(
-												index,
-												'item',
-												event.target.value
-											)
-										}
-									/>
+									<div className='flex-1 relative'>
+										<input
+											className='w-full rounded border border-gray-300 p-2'
+											placeholder='Ingredient name'
+											value={ingredient.item}
+											onChange={(event) => {
+												const value =
+													event.target.value;
+												updateIngredientField(
+													index,
+													'item',
+													value
+												);
+												setSuggestionSearchTerms(
+													(prev) => ({
+														...prev,
+														[index]: value,
+													})
+												);
+												setActiveSuggestionIndex(
+													value.trim().length > 0
+														? index
+														: null
+												);
+											}}
+											onFocus={() => {
+												if (
+													ingredient.item.trim()
+														.length > 0
+												) {
+													setActiveSuggestionIndex(
+														index
+													);
+												}
+											}}
+											onBlur={() => {
+												// Delay to allow click on suggestion
+												setTimeout(() => {
+													setActiveSuggestionIndex(
+														null
+													);
+												}, 200);
+											}}
+										/>
+										{activeSuggestionIndex === index &&
+											suggestionSearchTerms[index] &&
+											suggestionSearchTerms[index].trim()
+												.length > 0 && (
+												<IngredientSuggestions
+													searchTerm={
+														suggestionSearchTerms[
+															index
+														]
+													}
+													onSelect={(
+														selectedItem
+													) => {
+														updateIngredientField(
+															index,
+															'item',
+															selectedItem
+														);
+														setSuggestionSearchTerms(
+															(prev) => ({
+																...prev,
+																[index]:
+																	selectedItem,
+															})
+														);
+														setActiveSuggestionIndex(
+															null
+														);
+													}}
+												/>
+											)}
+									</div>
 									<button
 										className='rounded border border-gray-300 px-2 text-sm text-gray-600 hover:bg-gray-100'
-										onClick={() => removeIngredientRow(index)}
+										onClick={() =>
+											removeIngredientRow(index)
+										}
 										type='button'>
 										Remove
 									</button>
@@ -457,7 +560,11 @@ export default function AdminPage() {
 											.split(',')
 											.map((f) => f.trim())
 											.filter((f) => f.length > 0);
-										updateIngredientField(index, 'forms', forms);
+										updateIngredientField(
+											index,
+											'forms',
+											forms
+										);
 									}}
 								/>
 							</div>
@@ -548,7 +655,9 @@ export default function AdminPage() {
 													(
 														ingredient: {
 															item: string;
-															forms?: string[] | null;
+															forms?:
+																| string[]
+																| null;
 															quantity?: {
 																amount?:
 																	| number
@@ -606,8 +715,11 @@ export default function AdminPage() {
 
 														const formsText =
 															ingredient.forms &&
-															ingredient.forms.length > 0
-																? ` (${ingredient.forms.join(', ')})`
+															ingredient.forms
+																.length > 0
+																? ` (${ingredient.forms.join(
+																		', '
+																  )})`
 																: '';
 
 														return (
@@ -632,7 +744,9 @@ export default function AdminPage() {
 																	}
 																	{formsText && (
 																		<span className='text-gray-500 italic'>
-																			{formsText}
+																			{
+																				formsText
+																			}
 																		</span>
 																	)}
 																</span>
@@ -787,7 +901,9 @@ export default function AdminPage() {
 									className='flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-md text-sm group'>
 									<span>{unit.unit}</span>
 									<button
-										onClick={() => handleRemoveUnit(unit._id)}
+										onClick={() =>
+											handleRemoveUnit(unit._id)
+										}
 										className='opacity-0 group-hover:opacity-100 transition-opacity text-red-600 hover:text-red-700 font-medium'
 										title='Delete unit'>
 										×
