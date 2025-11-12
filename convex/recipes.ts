@@ -155,6 +155,14 @@ export const listUniqueUnits = query({
 	},
 });
 
+export const listUniqueIngredientForms = query({
+	args: {},
+	handler: async (ctx) => {
+		const allForms = await ctx.db.query('ingredientForm').collect();
+		return allForms.map((form) => form.form).sort();
+	},
+});
+
 export const getRecipesByIngredient = query({
 	args: { item: v.string() },
 	handler: async (ctx, args) => {

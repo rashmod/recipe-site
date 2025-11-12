@@ -102,6 +102,53 @@ function UnitSuggestions({
 	);
 }
 
+// Form Suggestions Component
+function FormSuggestions({
+	searchTerm,
+	allForms,
+	currentForms,
+	onSelect,
+}: {
+	searchTerm: string;
+	allForms: string[];
+	currentForms: string[];
+	onSelect: (form: string) => void;
+}) {
+	const suggestions = useMemo(() => {
+		// Filter out forms that are already in the current list
+		const availableForms = allForms.filter(
+			(form) => !currentForms.includes(form)
+		);
+		if (!searchTerm.trim()) {
+			return availableForms;
+		}
+		const searchLower = searchTerm.toLowerCase().trim();
+		return availableForms.filter((form) =>
+			form.toLowerCase().includes(searchLower)
+		);
+	}, [allForms, searchTerm, currentForms]);
+
+	if (suggestions.length === 0) {
+		return null;
+	}
+
+	return (
+		<ul className='absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto'>
+			{suggestions.map((suggestion, idx) => (
+				<li
+					key={idx}
+					className='px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm'
+					onMouseDown={(e) => {
+						e.preventDefault(); // Prevent input blur
+						onSelect(suggestion);
+					}}>
+					{suggestion}
+				</li>
+			))}
+		</ul>
+	);
+}
+
 export default function AdminPage() {
 	const recipes = useQuery(api.recipes.list) ?? [];
 
@@ -130,9 +177,10 @@ export default function AdminPage() {
 		useQuery(api.recipes.listUnusedIngredientForms) ?? [];
 	const unusedUnits = useQuery(api.recipes.listUnusedUnits) ?? [];
 
-	// Fetch all ingredients and units once for autocomplete
+	// Fetch all ingredients, units, and forms once for autocomplete
 	const allIngredients = useQuery(api.recipes.listUniqueIngredients) ?? [];
 	const allUnits = useQuery(api.recipes.listUniqueUnits) ?? [];
+	const allForms = useQuery(api.recipes.listUniqueIngredientForms) ?? [];
 
 	const [title, setTitle] = useState('');
 	const [ingredients, setIngredients] = useState<IngredientInput[]>([
@@ -152,6 +200,15 @@ export default function AdminPage() {
 	const [unitSuggestionSearchTerms, setUnitSuggestionSearchTerms] = useState<
 		Record<number, string>
 	>({});
+	const [activeFormSuggestionIndex, setActiveFormSuggestionIndex] = useState<
+		number | null
+	>(null);
+	const [formSuggestionSearchTerms, setFormSuggestionSearchTerms] = useState<
+		Record<number, string>
+	>({});
+	const [formInputValues, setFormInputValues] = useState<
+		Record<number, string>
+	>({});
 
 	const isEditing = useMemo(() => editingId !== null, [editingId]);
 
@@ -160,6 +217,8 @@ export default function AdminPage() {
 		setIngredients([createEmptyIngredient()]);
 		setInstructions('');
 		setEditingId(null);
+		setFormInputValues({});
+		setFormSuggestionSearchTerms({});
 	};
 
 	const updateIngredientField = <Key extends keyof IngredientInput>(
@@ -662,22 +721,206 @@ export default function AdminPage() {
 										Remove
 									</button>
 								</div>
-								<input
-									className='w-full rounded border border-gray-300 p-2 text-sm'
-									placeholder='Forms (comma-separated, e.g., diced, chopped, minced)'
-									value={ingredient.forms.join(', ')}
-									onChange={(event) => {
-										const forms = event.target.value
-											.split(',')
-											.map((f) => f.trim())
-											.filter((f) => f.length > 0);
-										updateIngredientField(
-											index,
-											'forms',
-											forms
-										);
-									}}
-								/>
+								<div className='w-full relative'>
+									<input
+										className='w-full rounded border border-gray-300 p-2 text-sm'
+										placeholder='Forms (comma-separated, e.g., diced, chopped, minced)'
+										value={
+											formInputValues[index] ??
+											ingredient.forms.join(', ')
+										}
+										onChange={(event) => {
+											const value = event.target.value;
+
+											// Store the raw input value to allow free typing
+											setFormInputValues((prev) => ({
+												...prev,
+												[index]: value,
+											}));
+
+											// Extract the last form being typed (after last comma) for suggestions
+											const lastCommaIndex =
+												value.lastIndexOf(',');
+											const currentFormInput =
+												lastCommaIndex >= 0
+													? value
+															.substring(
+																lastCommaIndex +
+																	1
+															)
+															.trim()
+													: value.trim();
+
+											// Update forms array - include all completed forms plus the current partial one
+											const completedForms =
+												lastCommaIndex >= 0
+													? value
+															.substring(
+																0,
+																lastCommaIndex
+															)
+															.split(',')
+															.map((f) =>
+																f.trim()
+															)
+															.filter(
+																(f) =>
+																	f.length > 0
+															)
+													: [];
+
+											// Only add currentFormInput to forms if it's not empty
+											const forms =
+												currentFormInput.length > 0
+													? [
+															...completedForms,
+															currentFormInput,
+													  ]
+													: completedForms;
+
+											updateIngredientField(
+												index,
+												'forms',
+												forms
+											);
+											setFormSuggestionSearchTerms(
+												(prev) => ({
+													...prev,
+													[index]: currentFormInput,
+												})
+											);
+											setActiveFormSuggestionIndex(index);
+										}}
+										onFocus={() => {
+											setActiveFormSuggestionIndex(index);
+											const currentValue =
+												formInputValues[index] ??
+												ingredient.forms.join(', ');
+											const lastCommaIndex =
+												currentValue.lastIndexOf(',');
+											const currentFormInput =
+												lastCommaIndex >= 0
+													? currentValue
+															.substring(
+																lastCommaIndex +
+																	1
+															)
+															.trim()
+													: currentValue.trim();
+											setFormSuggestionSearchTerms(
+												(prev) => ({
+													...prev,
+													[index]: currentFormInput,
+												})
+											);
+										}}
+										onBlur={() => {
+											// When blurring, sync the input value with the forms array
+											const currentValue =
+												formInputValues[index];
+											if (currentValue !== undefined) {
+												// Parse the final value and update forms
+												const finalForms = currentValue
+													.split(',')
+													.map((f) => f.trim())
+													.filter(
+														(f) => f.length > 0
+													);
+												updateIngredientField(
+													index,
+													'forms',
+													finalForms
+												);
+												// Clear the temporary input value
+												setFormInputValues((prev) => {
+													const next = { ...prev };
+													delete next[index];
+													return next;
+												});
+											}
+											// Delay to allow click on suggestion
+											setTimeout(() => {
+												setActiveFormSuggestionIndex(
+													null
+												);
+											}, 200);
+										}}
+									/>
+									{activeFormSuggestionIndex === index && (
+										<FormSuggestions
+											searchTerm={
+												formSuggestionSearchTerms[
+													index
+												] ?? ''
+											}
+											allForms={allForms}
+											currentForms={ingredient.forms}
+											onSelect={(selectedForm) => {
+												const currentValue =
+													formInputValues[index] ??
+													ingredient.forms.join(', ');
+												const lastCommaIndex =
+													currentValue.lastIndexOf(
+														','
+													);
+
+												// Build the new value: completed forms + selected form
+												let newValue: string;
+												if (lastCommaIndex >= 0) {
+													// Replace everything after the last comma with the selected form
+													const beforeComma =
+														currentValue
+															.substring(
+																0,
+																lastCommaIndex +
+																	1
+															)
+															.trim();
+													newValue = `${beforeComma} ${selectedForm}`;
+												} else {
+													// No comma, replace the entire value or append
+													if (
+														currentValue.trim()
+															.length > 0
+													) {
+														newValue = selectedForm;
+													} else {
+														newValue = selectedForm;
+													}
+												}
+
+												// Update the input value
+												setFormInputValues((prev) => ({
+													...prev,
+													[index]: newValue,
+												}));
+
+												// Update forms array - parse the new value
+												const updatedForms = newValue
+													.split(',')
+													.map((f) => f.trim())
+													.filter(
+														(f) => f.length > 0
+													);
+
+												updateIngredientField(
+													index,
+													'forms',
+													updatedForms
+												);
+												setFormSuggestionSearchTerms(
+													(prev) => ({
+														...prev,
+														[index]: '',
+													})
+												);
+												setActiveFormSuggestionIndex(
+													null
+												);
+											}}
+										/>
+									)}
+								</div>
 							</div>
 						))}
 						<button
