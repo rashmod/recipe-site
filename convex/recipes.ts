@@ -147,33 +147,11 @@ export const listUniqueIngredients = query({
 	},
 });
 
-export const searchIngredients = query({
-	args: { searchTerm: v.string() },
-	handler: async (ctx, args) => {
-		if (!args.searchTerm.trim()) {
-			return [];
-		}
-		const searchLower = args.searchTerm.toLowerCase().trim();
-		const allIngredients = await ctx.db.query('ingredients').collect();
-		return allIngredients
-			.filter((ing) => ing.item.toLowerCase().includes(searchLower))
-			.map((ing) => ing.item)
-			.sort();
-	},
-});
-
-export const searchUnits = query({
-	args: { searchTerm: v.string() },
-	handler: async (ctx, args) => {
-		if (!args.searchTerm.trim()) {
-			return [];
-		}
-		const searchLower = args.searchTerm.toLowerCase().trim();
+export const listUniqueUnits = query({
+	args: {},
+	handler: async (ctx) => {
 		const allUnits = await ctx.db.query('units').collect();
-		return allUnits
-			.filter((unit) => unit.unit.toLowerCase().includes(searchLower))
-			.map((unit) => unit.unit)
-			.sort();
+		return allUnits.map((unit) => unit.unit).sort();
 	},
 });
 

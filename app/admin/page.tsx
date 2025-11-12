@@ -23,15 +23,22 @@ const createEmptyIngredient = (): IngredientInput => ({
 // Ingredient Suggestions Component
 function IngredientSuggestions({
 	searchTerm,
+	allIngredients,
 	onSelect,
 }: {
 	searchTerm: string;
+	allIngredients: string[];
 	onSelect: (item: string) => void;
 }) {
-	const suggestions =
-		useQuery(api.recipes.searchIngredients, {
-			searchTerm,
-		}) ?? [];
+	const suggestions = useMemo(() => {
+		if (!searchTerm.trim()) {
+			return allIngredients;
+		}
+		const searchLower = searchTerm.toLowerCase().trim();
+		return allIngredients.filter((ing) =>
+			ing.toLowerCase().includes(searchLower)
+		);
+	}, [allIngredients, searchTerm]);
 
 	if (suggestions.length === 0) {
 		return null;
@@ -57,15 +64,22 @@ function IngredientSuggestions({
 // Unit Suggestions Component
 function UnitSuggestions({
 	searchTerm,
+	allUnits,
 	onSelect,
 }: {
 	searchTerm: string;
+	allUnits: string[];
 	onSelect: (unit: string) => void;
 }) {
-	const suggestions =
-		useQuery(api.recipes.searchUnits, {
-			searchTerm,
-		}) ?? [];
+	const suggestions = useMemo(() => {
+		if (!searchTerm.trim()) {
+			return allUnits;
+		}
+		const searchLower = searchTerm.toLowerCase().trim();
+		return allUnits.filter((unit) =>
+			unit.toLowerCase().includes(searchLower)
+		);
+	}, [allUnits, searchTerm]);
 
 	if (suggestions.length === 0) {
 		return null;
@@ -115,6 +129,10 @@ export default function AdminPage() {
 	const unusedIngredientForms =
 		useQuery(api.recipes.listUnusedIngredientForms) ?? [];
 	const unusedUnits = useQuery(api.recipes.listUnusedUnits) ?? [];
+
+	// Fetch all ingredients and units once for autocomplete
+	const allIngredients = useQuery(api.recipes.listUniqueIngredients) ?? [];
+	const allUnits = useQuery(api.recipes.listUniqueUnits) ?? [];
 
 	const [title, setTitle] = useState('');
 	const [ingredients, setIngredients] = useState<IngredientInput[]>([
@@ -514,20 +532,20 @@ export default function AdminPage() {
 													})
 												);
 												setActiveUnitSuggestionIndex(
-													value.trim().length > 0
-														? index
-														: null
+													index
 												);
 											}}
 											onFocus={() => {
-												if (
-													ingredient.unit.trim()
-														.length > 0
-												) {
-													setActiveUnitSuggestionIndex(
-														index
-													);
-												}
+												setActiveUnitSuggestionIndex(
+													index
+												);
+												setUnitSuggestionSearchTerms(
+													(prev) => ({
+														...prev,
+														[index]:
+															ingredient.unit,
+													})
+												);
 											}}
 											onBlur={() => {
 												// Delay to allow click on suggestion
@@ -538,38 +556,34 @@ export default function AdminPage() {
 												}, 200);
 											}}
 										/>
-										{activeUnitSuggestionIndex === index &&
-											unitSuggestionSearchTerms[index] &&
-											unitSuggestionSearchTerms[
-												index
-											].trim().length > 0 && (
-												<UnitSuggestions
-													searchTerm={
-														unitSuggestionSearchTerms[
-															index
-														]
-													}
-													onSelect={(
+										{activeUnitSuggestionIndex ===
+											index && (
+											<UnitSuggestions
+												searchTerm={
+													unitSuggestionSearchTerms[
+														index
+													] ?? ingredient.unit
+												}
+												allUnits={allUnits}
+												onSelect={(selectedUnit) => {
+													updateIngredientField(
+														index,
+														'unit',
 														selectedUnit
-													) => {
-														updateIngredientField(
-															index,
-															'unit',
-															selectedUnit
-														);
-														setUnitSuggestionSearchTerms(
-															(prev) => ({
-																...prev,
-																[index]:
-																	selectedUnit,
-															})
-														);
-														setActiveUnitSuggestionIndex(
-															null
-														);
-													}}
-												/>
-											)}
+													);
+													setUnitSuggestionSearchTerms(
+														(prev) => ({
+															...prev,
+															[index]:
+																selectedUnit,
+														})
+													);
+													setActiveUnitSuggestionIndex(
+														null
+													);
+												}}
+											/>
+										)}
 									</div>
 									<div className='flex-1 relative'>
 										<input
@@ -590,21 +604,17 @@ export default function AdminPage() {
 														[index]: value,
 													})
 												);
-												setActiveSuggestionIndex(
-													value.trim().length > 0
-														? index
-														: null
-												);
+												setActiveSuggestionIndex(index);
 											}}
 											onFocus={() => {
-												if (
-													ingredient.item.trim()
-														.length > 0
-												) {
-													setActiveSuggestionIndex(
-														index
-													);
-												}
+												setActiveSuggestionIndex(index);
+												setSuggestionSearchTerms(
+													(prev) => ({
+														...prev,
+														[index]:
+															ingredient.item,
+													})
+												);
 											}}
 											onBlur={() => {
 												// Delay to allow click on suggestion
@@ -615,37 +625,33 @@ export default function AdminPage() {
 												}, 200);
 											}}
 										/>
-										{activeSuggestionIndex === index &&
-											suggestionSearchTerms[index] &&
-											suggestionSearchTerms[index].trim()
-												.length > 0 && (
-												<IngredientSuggestions
-													searchTerm={
-														suggestionSearchTerms[
-															index
-														]
-													}
-													onSelect={(
+										{activeSuggestionIndex === index && (
+											<IngredientSuggestions
+												searchTerm={
+													suggestionSearchTerms[
+														index
+													] ?? ingredient.item
+												}
+												allIngredients={allIngredients}
+												onSelect={(selectedItem) => {
+													updateIngredientField(
+														index,
+														'item',
 														selectedItem
-													) => {
-														updateIngredientField(
-															index,
-															'item',
-															selectedItem
-														);
-														setSuggestionSearchTerms(
-															(prev) => ({
-																...prev,
-																[index]:
-																	selectedItem,
-															})
-														);
-														setActiveSuggestionIndex(
-															null
-														);
-													}}
-												/>
-											)}
+													);
+													setSuggestionSearchTerms(
+														(prev) => ({
+															...prev,
+															[index]:
+																selectedItem,
+														})
+													);
+													setActiveSuggestionIndex(
+														null
+													);
+												}}
+											/>
+										)}
 									</div>
 									<button
 										className='rounded border border-gray-300 px-2 text-sm text-gray-600 hover:bg-gray-100'
