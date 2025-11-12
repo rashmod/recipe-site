@@ -21,10 +21,11 @@ const createEmptyIngredient = (): IngredientInput => ({
 export default function AdminPage() {
 	const recipes = useQuery(api.recipes.list) ?? [];
 
-	const adminSecret = useMemo(
-		() => localStorage.getItem('adminSecret') ?? '',
-		[]
-	);
+	const adminSecret = useMemo(() => {
+		return typeof window !== 'undefined'
+			? localStorage.getItem('adminSecret') ?? ''
+			: '';
+	}, []);
 
 	const addRecipe = useMutation(api.recipes.add);
 	const updateRecipe = useMutation(api.recipes.update);

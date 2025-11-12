@@ -6,7 +6,7 @@ export default defineSchema({
 		title: v.string(),
 		ingredients: v.array(
 			v.object({
-				item: v.string(),
+				item: v.id('ingredients'),
 				quantity: v.optional(
 					v.object({
 						amount: v.optional(v.number()),
@@ -16,5 +16,9 @@ export default defineSchema({
 			})
 		),
 		instructions: v.string(),
+	}),
+
+	ingredients: defineTable({
+		item: v.string(),
 	}),
 });

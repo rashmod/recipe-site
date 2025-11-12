@@ -9,6 +9,7 @@
  */
 
 import type * as _utils from "../_utils.js";
+import type * as migrate from "../migrate.js";
 import type * as recipes from "../recipes.js";
 
 import type {
@@ -19,6 +20,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   _utils: typeof _utils;
+  migrate: typeof migrate;
   recipes: typeof recipes;
 }>;
 
