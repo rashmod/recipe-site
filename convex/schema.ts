@@ -11,7 +11,7 @@ export default defineSchema({
 				quantity: v.optional(
 					v.object({
 						amount: v.optional(v.number()),
-						unit: v.optional(v.string()),
+						unit: v.optional(v.id('units')),
 					})
 				),
 			})
@@ -25,5 +25,9 @@ export default defineSchema({
 
 	ingredientForm: defineTable({
 		form: v.string(),
+	}),
+
+	units: defineTable({
+		unit: v.string(),
 	}),
 });

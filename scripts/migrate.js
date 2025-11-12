@@ -94,11 +94,27 @@ async function main() {
 		console.log('🗑️  Step 0: Clearing existing data...');
 		const clearResult = await client.action('migrate:clearAllData', {});
 		console.log(
-			`   ✅ Cleared ${clearResult.recipes} recipes, ${clearResult.ingredients} ingredients, ${clearResult.forms} forms\n`
+			`   ✅ Cleared ${clearResult.recipes} recipes, ${clearResult.ingredients} ingredients, ${clearResult.forms} forms, ${clearResult.units} units\n`
 		);
 
-		// Step 1: Import ingredients
-		console.log('📦 Step 1: Importing ingredients...');
+		// Step 1: Import units
+		console.log('📏 Step 1: Importing units...');
+		const unitsPath = path.join(__dirname, '..', 'units.jsonl');
+		if (!fs.existsSync(unitsPath)) {
+			throw new Error(`Units file not found: ${unitsPath}`);
+		}
+
+		const units = readJSONL(unitsPath);
+		console.log(`   Found ${units.length} units`);
+
+		const unitMap = await client.action('migrate:importUnits', {
+			units,
+		});
+
+		console.log(`   ✅ Imported ${Object.keys(unitMap).length} units\n`);
+
+		// Step 2: Import ingredients
+		console.log('📦 Step 2: Importing ingredients...');
 		const ingredientsPath = path.join(__dirname, '..', 'ingredients.jsonl');
 		if (!fs.existsSync(ingredientsPath)) {
 			throw new Error(`Ingredients file not found: ${ingredientsPath}`);
@@ -115,8 +131,8 @@ async function main() {
 			`   ✅ Imported ${Object.keys(ingredientMap).length} ingredients\n`
 		);
 
-		// Step 2: Import recipes
-		console.log('📝 Step 2: Importing recipes...');
+		// Step 3: Import recipes
+		console.log('📝 Step 3: Importing recipes...');
 		const recipesPath = path.join(__dirname, '..', 'recipes.jsonl');
 		if (!fs.existsSync(recipesPath)) {
 			throw new Error(`Recipes file not found: ${recipesPath}`);
@@ -134,6 +150,7 @@ async function main() {
 
 		// Summary
 		console.log('✨ Migration completed successfully!');
+		console.log(`   - Units: ${Object.keys(unitMap).length}`);
 		console.log(`   - Ingredients: ${Object.keys(ingredientMap).length}`);
 		console.log(`   - Recipes: ${results.length}`);
 	} catch (error) {

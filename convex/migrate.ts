@@ -12,6 +12,7 @@ export const clearAllData = action({
 		recipes: number;
 		ingredients: number;
 		forms: number;
+		units: number;
 	}> => {
 		console.log('🗑️  Clearing all existing data...');
 
@@ -35,11 +36,46 @@ export const clearAllData = action({
 		)) as { deletedCount: number };
 		console.log(`   Deleted ${formsResult.deletedCount} ingredient forms`);
 
+		const unitsResult = (await ctx.runMutation(
+			internal.recipes.deleteAllUnits,
+			{}
+		)) as { deletedCount: number };
+		console.log(`   Deleted ${unitsResult.deletedCount} units`);
+
 		return {
 			recipes: recipesResult.deletedCount,
 			ingredients: ingredientsResult.deletedCount,
 			forms: formsResult.deletedCount,
+			units: unitsResult.deletedCount,
 		};
+	},
+});
+
+// Public action to import units (for migration script)
+export const importUnits = action({
+	args: {
+		units: v.array(
+			v.object({
+				unit: v.string(),
+			})
+		),
+	},
+	handler: async (ctx, args) => {
+		const unitMap: Record<string, string> = {};
+
+		// Import each unit, creating a name -> ID mapping
+		for (const unit of args.units) {
+			const trimmedName = unit.unit.trim();
+			if (!trimmedName) continue;
+
+			// Since we cleared the database, we can just create new units
+			const id = await ctx.runMutation(internal.recipes.createUnit, {
+				unit: trimmedName,
+			});
+			unitMap[trimmedName] = id;
+		}
+
+		return unitMap;
 	},
 });
 
@@ -106,7 +142,7 @@ export const importRecipes = action({
 			const ingredientRefs: Array<{
 				item: Id<'ingredients'>;
 				forms?: Id<'ingredientForm'>[];
-				quantity?: { amount?: number; unit?: string };
+				quantity?: { amount?: number; unit?: Id<'units'> };
 			}> = [];
 
 			for (const ing of recipe.ingredients) {
@@ -144,10 +180,39 @@ export const importRecipes = action({
 					);
 				}
 
+				// Convert unit name to unit ID
+				let unitId: Id<'units'> | undefined;
+				if (ing.quantity?.unit) {
+					// Check if unit exists
+					const existingUnit = await ctx.runQuery(
+						internal.recipes.findUnitByName,
+						{
+							unit: ing.quantity.unit.trim(),
+						}
+					);
+
+					if (existingUnit) {
+						unitId = existingUnit;
+					} else {
+						// Create new unit
+						unitId = await ctx.runMutation(
+							internal.recipes.createUnit,
+							{
+								unit: ing.quantity.unit.trim(),
+							}
+						);
+					}
+				}
+
 				ingredientRefs.push({
 					item: ingredientId as Id<'ingredients'>,
 					forms: formIds,
-					quantity: ing.quantity,
+					quantity: ing.quantity
+						? {
+								amount: ing.quantity.amount,
+								unit: unitId,
+						  }
+						: undefined,
 				});
 			}
 

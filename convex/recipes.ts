@@ -71,6 +71,30 @@ async function getOrCreateIngredientForm(
 	return await ctx.db.insert('ingredientForm', { form: trimmedName });
 }
 
+// Helper function to get or create a unit by name
+async function getOrCreateUnit(
+	ctx: MutationCtx,
+	unitName: string
+): Promise<Id<'units'>> {
+	const trimmedName = unitName.trim();
+	if (!trimmedName) {
+		throw new Error('Unit name cannot be empty');
+	}
+
+	// Try to find existing unit
+	const existing = await ctx.db
+		.query('units')
+		.filter((q) => q.eq(q.field('unit'), trimmedName))
+		.first();
+
+	if (existing) {
+		return existing._id;
+	}
+
+	// Create new unit
+	return await ctx.db.insert('units', { unit: trimmedName });
+}
+
 export const list = query({
 	args: {},
 	handler: async (ctx) => {
@@ -90,10 +114,19 @@ export const list = query({
 									})
 							  )
 							: undefined;
+						const unit = ing.quantity?.unit
+							? (await ctx.db.get(ing.quantity.unit))?.unit ??
+							  null
+							: null;
 						return {
 							item: ingredient?.item ?? 'Unknown',
 							forms: forms,
-							quantity: ing.quantity,
+							quantity: ing.quantity
+								? {
+										amount: ing.quantity.amount,
+										unit: unit,
+								  }
+								: undefined,
 						};
 					})
 				);
@@ -147,10 +180,19 @@ export const getRecipesByIngredient = query({
 									})
 							  )
 							: undefined;
+						const unit = ing.quantity?.unit
+							? (await ctx.db.get(ing.quantity.unit))?.unit ??
+							  null
+							: null;
 						return {
 							item: ingEntity?.item ?? 'Unknown',
 							forms: forms,
-							quantity: ing.quantity,
+							quantity: ing.quantity
+								? {
+										amount: ing.quantity.amount,
+										unit: unit,
+								  }
+								: undefined,
 						};
 					})
 				);
@@ -185,10 +227,18 @@ export const add = mutation({
 							)
 					  )
 					: undefined;
+				const unitId = ing.quantity?.unit
+					? await getOrCreateUnit(ctx, ing.quantity.unit)
+					: undefined;
 				return {
 					item: ingredientId,
 					forms: formIds,
-					quantity: ing.quantity,
+					quantity: ing.quantity
+						? {
+								amount: ing.quantity.amount,
+								unit: unitId,
+						  }
+						: undefined,
 				};
 			})
 		);
@@ -232,10 +282,18 @@ export const update = mutation({
 								)
 						  )
 						: undefined;
+					const unitId = ing.quantity?.unit
+						? await getOrCreateUnit(ctx, ing.quantity.unit)
+						: undefined;
 					return {
 						item: ingredientId,
 						forms: formIds,
-						quantity: ing.quantity,
+						quantity: ing.quantity
+							? {
+									amount: ing.quantity.amount,
+									unit: unitId,
+							  }
+							: undefined,
 					};
 				})
 			);
@@ -394,7 +452,7 @@ export const createRecipe = internalMutation({
 				quantity: v.optional(
 					v.object({
 						amount: v.optional(v.number()),
-						unit: v.optional(v.string()),
+						unit: v.optional(v.id('units')),
 					})
 				),
 			})
@@ -437,5 +495,34 @@ export const deleteAllIngredientForms = internalMutation({
 			await ctx.db.delete(form._id);
 		}
 		return { deletedCount: forms.length };
+	},
+});
+
+export const deleteAllUnits = internalMutation({
+	args: {},
+	handler: async (ctx) => {
+		const units = await ctx.db.query('units').collect();
+		for (const unit of units) {
+			await ctx.db.delete(unit._id);
+		}
+		return { deletedCount: units.length };
+	},
+});
+
+export const findUnitByName = internalQuery({
+	args: { unit: v.string() },
+	handler: async (ctx, args) => {
+		const unit = await ctx.db
+			.query('units')
+			.filter((q) => q.eq(q.field('unit'), args.unit.trim()))
+			.first();
+		return unit?._id;
+	},
+});
+
+export const createUnit = internalMutation({
+	args: { unit: v.string() },
+	handler: async (ctx, args) => {
+		return await ctx.db.insert('units', { unit: args.unit.trim() });
 	},
 });
