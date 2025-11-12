@@ -403,6 +403,188 @@ export const removeUnusedIngredients = mutation({
 	},
 });
 
+// Query to find unused ingredient forms
+export const listUnusedIngredientForms = query({
+	args: {},
+	handler: async (ctx) => {
+		// Get all forms
+		const allForms = await ctx.db.query('ingredientForm').collect();
+
+		// Get all recipes and collect all form IDs that are used
+		const allRecipes = await ctx.db.query('recipes').collect();
+		const usedFormIds = new Set<Id<'ingredientForm'>>();
+		for (const recipe of allRecipes) {
+			for (const ing of recipe.ingredients) {
+				if (ing.forms) {
+					for (const formId of ing.forms) {
+						usedFormIds.add(formId);
+					}
+				}
+			}
+		}
+
+		// Filter out forms that are used
+		const unusedForms = allForms.filter(
+			(form) => !usedFormIds.has(form._id)
+		);
+
+		return unusedForms.map((form) => ({
+			_id: form._id,
+			form: form.form,
+		}));
+	},
+});
+
+// Mutation to delete a single ingredient form
+export const removeIngredientForm = mutation({
+	args: {
+		id: v.id('ingredientForm'),
+		adminSecret: v.optional(v.string()),
+	},
+	handler: async (ctx, args) => {
+		requireAdmin(ctx, args.adminSecret ?? null);
+
+		// Check if form is used in any recipe
+		const allRecipes = await ctx.db.query('recipes').collect();
+		const isUsed = allRecipes.some((recipe) =>
+			recipe.ingredients.some(
+				(ing) => ing.forms && ing.forms.includes(args.id)
+			)
+		);
+
+		if (isUsed) {
+			throw new Error('Cannot delete form that is used in recipes');
+		}
+
+		await ctx.db.delete(args.id);
+	},
+});
+
+// Mutation to delete unused ingredient forms
+export const removeUnusedIngredientForms = mutation({
+	args: { adminSecret: v.optional(v.string()) },
+	handler: async (ctx, args) => {
+		requireAdmin(ctx, args.adminSecret ?? null);
+
+		// Get all forms
+		const allForms = await ctx.db.query('ingredientForm').collect();
+
+		// Get all recipes and collect all form IDs that are used
+		const allRecipes = await ctx.db.query('recipes').collect();
+		const usedFormIds = new Set<Id<'ingredientForm'>>();
+		for (const recipe of allRecipes) {
+			for (const ing of recipe.ingredients) {
+				if (ing.forms) {
+					for (const formId of ing.forms) {
+						usedFormIds.add(formId);
+					}
+				}
+			}
+		}
+
+		// Find and delete unused forms
+		const unusedForms = allForms.filter(
+			(form) => !usedFormIds.has(form._id)
+		);
+
+		let deletedCount = 0;
+		for (const form of unusedForms) {
+			await ctx.db.delete(form._id);
+			deletedCount++;
+		}
+
+		return { deletedCount };
+	},
+});
+
+// Query to find unused units
+export const listUnusedUnits = query({
+	args: {},
+	handler: async (ctx) => {
+		// Get all units
+		const allUnits = await ctx.db.query('units').collect();
+
+		// Get all recipes and collect all unit IDs that are used
+		const allRecipes = await ctx.db.query('recipes').collect();
+		const usedUnitIds = new Set<Id<'units'>>();
+		for (const recipe of allRecipes) {
+			for (const ing of recipe.ingredients) {
+				if (ing.quantity?.unit) {
+					usedUnitIds.add(ing.quantity.unit);
+				}
+			}
+		}
+
+		// Filter out units that are used
+		const unusedUnits = allUnits.filter(
+			(unit) => !usedUnitIds.has(unit._id)
+		);
+
+		return unusedUnits.map((unit) => ({
+			_id: unit._id,
+			unit: unit.unit,
+		}));
+	},
+});
+
+// Mutation to delete a single unit
+export const removeUnit = mutation({
+	args: {
+		id: v.id('units'),
+		adminSecret: v.optional(v.string()),
+	},
+	handler: async (ctx, args) => {
+		requireAdmin(ctx, args.adminSecret ?? null);
+
+		// Check if unit is used in any recipe
+		const allRecipes = await ctx.db.query('recipes').collect();
+		const isUsed = allRecipes.some((recipe) =>
+			recipe.ingredients.some((ing) => ing.quantity?.unit === args.id)
+		);
+
+		if (isUsed) {
+			throw new Error('Cannot delete unit that is used in recipes');
+		}
+
+		await ctx.db.delete(args.id);
+	},
+});
+
+// Mutation to delete unused units
+export const removeUnusedUnits = mutation({
+	args: { adminSecret: v.optional(v.string()) },
+	handler: async (ctx, args) => {
+		requireAdmin(ctx, args.adminSecret ?? null);
+
+		// Get all units
+		const allUnits = await ctx.db.query('units').collect();
+
+		// Get all recipes and collect all unit IDs that are used
+		const allRecipes = await ctx.db.query('recipes').collect();
+		const usedUnitIds = new Set<Id<'units'>>();
+		for (const recipe of allRecipes) {
+			for (const ing of recipe.ingredients) {
+				if (ing.quantity?.unit) {
+					usedUnitIds.add(ing.quantity.unit);
+				}
+			}
+		}
+
+		// Find and delete unused units
+		const unusedUnits = allUnits.filter(
+			(unit) => !usedUnitIds.has(unit._id)
+		);
+
+		let deletedCount = 0;
+		for (const unit of unusedUnits) {
+			await ctx.db.delete(unit._id);
+			deletedCount++;
+		}
+
+		return { deletedCount };
+	},
+});
+
 // Internal functions for migration
 export const findIngredientByName = internalQuery({
 	args: { item: v.string() },

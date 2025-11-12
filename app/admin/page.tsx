@@ -36,8 +36,18 @@ export default function AdminPage() {
 	const removeUnusedIngredients = useMutation(
 		api.recipes.removeUnusedIngredients
 	);
+	const removeIngredientForm = useMutation(api.recipes.removeIngredientForm);
+	const removeUnusedIngredientForms = useMutation(
+		api.recipes.removeUnusedIngredientForms
+	);
+	const removeUnit = useMutation(api.recipes.removeUnit);
+	const removeUnusedUnits = useMutation(api.recipes.removeUnusedUnits);
 
 	const unusedIngredients = useQuery(api.recipes.listUnusedIngredients) ?? [];
+	const unusedIngredientForms = useQuery(
+		api.recipes.listUnusedIngredientForms
+	) ?? [];
+	const unusedUnits = useQuery(api.recipes.listUnusedUnits) ?? [];
 
 	const [title, setTitle] = useState('');
 	const [ingredients, setIngredients] = useState<IngredientInput[]>([
@@ -245,6 +255,92 @@ export default function AdminPage() {
 					: 'Failed to delete ingredient'
 			);
 		}
+	};
+
+	const handleRemoveIngredientForm = async (id: Id<'ingredientForm'>) => {
+		if (!adminSecret) {
+			alert('Please login first.');
+			return;
+		}
+		const confirmed = window.confirm(
+			'Are you sure you want to delete this ingredient form? This action cannot be undone.'
+		);
+		if (!confirmed) {
+			return;
+		}
+		try {
+			await removeIngredientForm({ id, adminSecret });
+		} catch (error) {
+			alert(
+				error instanceof Error
+					? error.message
+					: 'Failed to delete ingredient form'
+			);
+		}
+	};
+
+	const handleRemoveUnusedIngredientForms = async () => {
+		if (!adminSecret) {
+			alert('Please login first.');
+			return;
+		}
+		if (unusedIngredientForms.length === 0) {
+			alert('No unused ingredient forms to remove.');
+			return;
+		}
+		const confirmed = window.confirm(
+			`Are you sure you want to delete ${
+				unusedIngredientForms.length
+			} unused ingredient form${
+				unusedIngredientForms.length !== 1 ? 's' : ''
+			}? This action cannot be undone.`
+		);
+		if (!confirmed) {
+			return;
+		}
+		await removeUnusedIngredientForms({ adminSecret });
+	};
+
+	const handleRemoveUnit = async (id: Id<'units'>) => {
+		if (!adminSecret) {
+			alert('Please login first.');
+			return;
+		}
+		const confirmed = window.confirm(
+			'Are you sure you want to delete this unit? This action cannot be undone.'
+		);
+		if (!confirmed) {
+			return;
+		}
+		try {
+			await removeUnit({ id, adminSecret });
+		} catch (error) {
+			alert(
+				error instanceof Error
+					? error.message
+					: 'Failed to delete unit'
+			);
+		}
+	};
+
+	const handleRemoveUnusedUnits = async () => {
+		if (!adminSecret) {
+			alert('Please login first.');
+			return;
+		}
+		if (unusedUnits.length === 0) {
+			alert('No unused units to remove.');
+			return;
+		}
+		const confirmed = window.confirm(
+			`Are you sure you want to delete ${
+				unusedUnits.length
+			} unused unit${unusedUnits.length !== 1 ? 's' : ''}? This action cannot be undone.`
+		);
+		if (!confirmed) {
+			return;
+		}
+		await removeUnusedUnits({ adminSecret });
 	};
 
 	const handleRemoveUnusedIngredients = async () => {
@@ -610,6 +706,99 @@ export default function AdminPage() {
 					<p className='text-sm text-gray-500'>
 						No unused ingredients. All ingredients are being used in
 						recipes.
+					</p>
+				)}
+			</section>
+
+			{/* Unused Ingredient Forms Section */}
+			<section className='rounded-lg border border-gray-200 bg-white p-6 shadow-sm'>
+				<div className='flex items-center justify-between mb-4'>
+					<div>
+						<h2 className='text-xl font-semibold text-gray-900'>
+							Unused Ingredient Forms
+						</h2>
+						<p className='text-sm text-gray-600 mt-1'>
+							Forms that are not used in any recipe
+						</p>
+					</div>
+					{unusedIngredientForms.length > 0 && (
+						<button
+							onClick={handleRemoveUnusedIngredientForms}
+							className='px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium'>
+							Delete All ({unusedIngredientForms.length})
+						</button>
+					)}
+				</div>
+
+				{unusedIngredientForms.length > 0 ? (
+					<div className='space-y-2'>
+						<ul className='flex flex-wrap gap-2'>
+							{unusedIngredientForms.map((form) => (
+								<li
+									key={form._id}
+									className='flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-md text-sm group'>
+									<span>{form.form}</span>
+									<button
+										onClick={() =>
+											handleRemoveIngredientForm(form._id)
+										}
+										className='opacity-0 group-hover:opacity-100 transition-opacity text-red-600 hover:text-red-700 font-medium'
+										title='Delete form'>
+										×
+									</button>
+								</li>
+							))}
+						</ul>
+					</div>
+				) : (
+					<p className='text-sm text-gray-500'>
+						No unused ingredient forms. All forms are being used in
+						recipes.
+					</p>
+				)}
+			</section>
+
+			{/* Unused Units Section */}
+			<section className='rounded-lg border border-gray-200 bg-white p-6 shadow-sm'>
+				<div className='flex items-center justify-between mb-4'>
+					<div>
+						<h2 className='text-xl font-semibold text-gray-900'>
+							Unused Units
+						</h2>
+						<p className='text-sm text-gray-600 mt-1'>
+							Units that are not used in any recipe
+						</p>
+					</div>
+					{unusedUnits.length > 0 && (
+						<button
+							onClick={handleRemoveUnusedUnits}
+							className='px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium'>
+							Delete All ({unusedUnits.length})
+						</button>
+					)}
+				</div>
+
+				{unusedUnits.length > 0 ? (
+					<div className='space-y-2'>
+						<ul className='flex flex-wrap gap-2'>
+							{unusedUnits.map((unit) => (
+								<li
+									key={unit._id}
+									className='flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-md text-sm group'>
+									<span>{unit.unit}</span>
+									<button
+										onClick={() => handleRemoveUnit(unit._id)}
+										className='opacity-0 group-hover:opacity-100 transition-opacity text-red-600 hover:text-red-700 font-medium'
+										title='Delete unit'>
+										×
+									</button>
+								</li>
+							))}
+						</ul>
+					</div>
+				) : (
+					<p className='text-sm text-gray-500'>
+						No unused units. All units are being used in recipes.
 					</p>
 				)}
 			</section>
