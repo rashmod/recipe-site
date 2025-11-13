@@ -218,6 +218,9 @@ export default function AdminPage() {
 	const [formInputValues, setFormInputValues] = useState<
 		Record<number, string>
 	>({});
+	const [cleanupTimeouts, setCleanupTimeouts] = useState<
+		Record<number, NodeJS.Timeout>
+	>({});
 
 	const isEditing = useMemo(() => editingId !== null, [editingId]);
 
@@ -248,6 +251,32 @@ export default function AdminPage() {
 			}
 
 			return updated.length > 0 ? updated : [createEmptyIngredient()];
+		});
+	};
+
+	const cleanupEmptyRows = () => {
+		setIngredients((current) => {
+			// Remove all empty rows except keep the last one if it's empty
+			// This ensures we always have exactly one empty row at the end
+			const nonEmptyRows = current.filter(
+				(ing, idx) =>
+					!isIngredientRowEmpty(ing) || idx === current.length - 1
+			);
+
+			// If we have no rows, create one empty row
+			if (nonEmptyRows.length === 0) {
+				return [createEmptyIngredient()];
+			}
+
+			// Check the last row
+			const last = nonEmptyRows[nonEmptyRows.length - 1];
+			if (last && !isIngredientRowEmpty(last)) {
+				// Last row is not empty, add an empty row
+				return [...nonEmptyRows, createEmptyIngredient()];
+			}
+
+			// Last row is empty, we're good - we have exactly one empty row at the end
+			return nonEmptyRows;
 		});
 	};
 
@@ -636,6 +665,34 @@ export default function AdminPage() {
 												event.target.value
 											)
 										}
+										onFocus={() => {
+											// Cancel any pending cleanup for this row
+											if (cleanupTimeouts[index]) {
+												clearTimeout(
+													cleanupTimeouts[index]
+												);
+												setCleanupTimeouts((prev) => {
+													const next = { ...prev };
+													delete next[index];
+													return next;
+												});
+											}
+										}}
+										onBlur={() => {
+											// Clean up empty rows after blur
+											const timeoutId = setTimeout(() => {
+												cleanupEmptyRows();
+												setCleanupTimeouts((prev) => {
+													const next = { ...prev };
+													delete next[index];
+													return next;
+												});
+											}, 200);
+											setCleanupTimeouts((prev) => ({
+												...prev,
+												[index]: timeoutId,
+											}));
+										}}
 									/>
 									<div className='w-28 relative'>
 										<input
@@ -671,6 +728,21 @@ export default function AdminPage() {
 															ingredient.unit,
 													})
 												);
+												// Cancel any pending cleanup for this row
+												if (cleanupTimeouts[index]) {
+													clearTimeout(
+														cleanupTimeouts[index]
+													);
+													setCleanupTimeouts(
+														(prev) => {
+															const next = {
+																...prev,
+															};
+															delete next[index];
+															return next;
+														}
+													);
+												}
 											}}
 											onBlur={() => {
 												// Delay to allow click on suggestion
@@ -679,6 +751,28 @@ export default function AdminPage() {
 														null
 													);
 												}, 200);
+												// Clean up empty rows after blur
+												const timeoutId = setTimeout(
+													() => {
+														cleanupEmptyRows();
+														setCleanupTimeouts(
+															(prev) => {
+																const next = {
+																	...prev,
+																};
+																delete next[
+																	index
+																];
+																return next;
+															}
+														);
+													},
+													200
+												);
+												setCleanupTimeouts((prev) => ({
+													...prev,
+													[index]: timeoutId,
+												}));
 											}}
 										/>
 										{activeUnitSuggestionIndex ===
@@ -740,6 +834,21 @@ export default function AdminPage() {
 															ingredient.item,
 													})
 												);
+												// Cancel any pending cleanup for this row
+												if (cleanupTimeouts[index]) {
+													clearTimeout(
+														cleanupTimeouts[index]
+													);
+													setCleanupTimeouts(
+														(prev) => {
+															const next = {
+																...prev,
+															};
+															delete next[index];
+															return next;
+														}
+													);
+												}
 											}}
 											onBlur={() => {
 												// Delay to allow click on suggestion
@@ -748,6 +857,28 @@ export default function AdminPage() {
 														null
 													);
 												}, 200);
+												// Clean up empty rows after blur
+												const timeoutId = setTimeout(
+													() => {
+														cleanupEmptyRows();
+														setCleanupTimeouts(
+															(prev) => {
+																const next = {
+																	...prev,
+																};
+																delete next[
+																	index
+																];
+																return next;
+															}
+														);
+													},
+													200
+												);
+												setCleanupTimeouts((prev) => ({
+													...prev,
+													[index]: timeoutId,
+												}));
 											}}
 										/>
 										{activeSuggestionIndex === index && (
@@ -881,6 +1012,17 @@ export default function AdminPage() {
 													[index]: currentFormInput,
 												})
 											);
+											// Cancel any pending cleanup for this row
+											if (cleanupTimeouts[index]) {
+												clearTimeout(
+													cleanupTimeouts[index]
+												);
+												setCleanupTimeouts((prev) => {
+													const next = { ...prev };
+													delete next[index];
+													return next;
+												});
+											}
 										}}
 										onBlur={() => {
 											// When blurring, sync the input value with the forms array
@@ -912,6 +1054,19 @@ export default function AdminPage() {
 													null
 												);
 											}, 200);
+											// Clean up empty rows after blur
+											const timeoutId = setTimeout(() => {
+												cleanupEmptyRows();
+												setCleanupTimeouts((prev) => {
+													const next = { ...prev };
+													delete next[index];
+													return next;
+												});
+											}, 200);
+											setCleanupTimeouts((prev) => ({
+												...prev,
+												[index]: timeoutId,
+											}));
 										}}
 									/>
 									{activeFormSuggestionIndex === index && (
