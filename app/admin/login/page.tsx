@@ -3,6 +3,10 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const ADMIN_SECRET_KEY = 'adminSecret';
 
@@ -21,38 +25,36 @@ export default function AdminLoginPage() {
 	};
 
 	return (
-		<main className='flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6'>
-			<nav className='mb-6 flex items-center gap-3 text-sm font-medium text-blue-600 underline-offset-2'>
-				<Link className='hover:underline' href='/'>
-					View recipes
-				</Link>
-				<Link className='hover:underline' href='/admin'>
-					Admin panel
-				</Link>
+		<main className="flex min-h-screen flex-col items-center justify-center bg-background p-4 lg:p-6">
+			<nav className="mb-6 flex items-center gap-3 text-sm font-medium">
+				<Button variant="link" asChild className="p-0 h-auto">
+					<Link href="/">View recipes</Link>
+				</Button>
+				<Button variant="link" asChild className="p-0 h-auto">
+					<Link href="/admin">Admin panel</Link>
+				</Button>
 			</nav>
-			<form
-				className='flex w-full max-w-sm flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm'
-				onSubmit={handleSubmit}>
-				<h1 className='text-2xl font-semibold text-gray-900'>
-					Admin Login
-				</h1>
-				<label className='flex flex-col gap-2 text-sm font-medium text-gray-800'>
-					Password
-					<input
-						className='rounded border border-gray-300 p-2 text-base font-normal text-gray-900'
-						type='password'
-						value={password}
-						onChange={(event) => setPassword(event.target.value)}
-						placeholder='Enter admin password'
-						required
-					/>
-				</label>
-				<button
-					className='rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700'
-					type='submit'>
-					Save password
-				</button>
-			</form>
+			<Card className="w-full max-w-sm">
+				<CardHeader>
+					<CardTitle>Admin Login</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+						<div className="flex flex-col gap-2">
+							<Label htmlFor="password">Password</Label>
+							<Input
+								id="password"
+								type="password"
+								value={password}
+								onChange={(event) => setPassword(event.target.value)}
+								placeholder="Enter admin password"
+								required
+							/>
+						</div>
+						<Button type="submit">Save password</Button>
+					</form>
+				</CardContent>
+			</Card>
 		</main>
 	);
 }
