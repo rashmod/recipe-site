@@ -20,6 +20,15 @@ const createEmptyIngredient = (): IngredientInput => ({
 	forms: [],
 });
 
+const isIngredientRowEmpty = (ingredient: IngredientInput) => {
+	return (
+		ingredient.item.trim().length === 0 &&
+		ingredient.amount.trim().length === 0 &&
+		ingredient.unit.trim().length === 0 &&
+		ingredient.forms.every((form) => form.trim().length === 0)
+	);
+};
+
 // Ingredient Suggestions Component
 function IngredientSuggestions({
 	searchTerm,
@@ -226,21 +235,65 @@ export default function AdminPage() {
 		field: Key,
 		value: IngredientInput[Key]
 	) => {
-		setIngredients((current) =>
-			current.map((ingredient, idx) =>
+		setIngredients((current) => {
+			const updated = current.map((ingredient, idx) =>
 				idx === index ? { ...ingredient, [field]: value } : ingredient
-			)
-		);
-	};
+			);
 
-	const addIngredientRow = () => {
-		setIngredients((current) => [...current, createEmptyIngredient()]);
+			if (index === current.length - 1) {
+				const updatedRow = updated[index];
+				if (updatedRow && !isIngredientRowEmpty(updatedRow)) {
+					return [...updated, createEmptyIngredient()];
+				}
+			}
+
+			return updated.length > 0 ? updated : [createEmptyIngredient()];
+		});
 	};
 
 	const removeIngredientRow = (index: number) => {
 		setIngredients((current) => {
 			const next = current.filter((_, idx) => idx !== index);
-			return next.length > 0 ? next : [createEmptyIngredient()];
+			const ensured = next.length > 0 ? next : [createEmptyIngredient()];
+			const last = ensured[ensured.length - 1];
+			if (last && !isIngredientRowEmpty(last)) {
+				return [...ensured, createEmptyIngredient()];
+			}
+			return ensured;
+		});
+
+		setFormInputValues((prev) => {
+			if (Object.keys(prev).length === 0) {
+				return prev;
+			}
+			const next: Record<number, string> = {};
+			for (const key of Object.keys(prev)) {
+				const idx = Number(key);
+				if (Number.isNaN(idx)) continue;
+				if (idx < index) {
+					next[idx] = prev[idx];
+				} else if (idx > index) {
+					next[idx - 1] = prev[idx];
+				}
+			}
+			return next;
+		});
+
+		setFormSuggestionSearchTerms((prev) => {
+			if (Object.keys(prev).length === 0) {
+				return prev;
+			}
+			const next: Record<number, string> = {};
+			for (const key of Object.keys(prev)) {
+				const idx = Number(key);
+				if (Number.isNaN(idx)) continue;
+				if (idx < index) {
+					next[idx] = prev[idx];
+				} else if (idx > index) {
+					next[idx - 1] = prev[idx];
+				}
+			}
+			return next;
 		});
 	};
 
@@ -360,7 +413,7 @@ export default function AdminPage() {
 		const ingredientList = Array.isArray(recipe.ingredients)
 			? recipe.ingredients
 			: [];
-		setIngredients(
+		const mappedIngredients =
 			ingredientList.length > 0
 				? ingredientList.map((ingredient) => ({
 						item: ingredient.item ?? '',
@@ -370,10 +423,23 @@ export default function AdminPage() {
 								? String(ingredient.quantity.amount)
 								: '',
 						unit: ingredient.quantity?.unit ?? '',
-						forms: ingredient.forms ?? [],
+						forms: (ingredient.forms ?? [])
+							.map((form) => form?.trim() ?? '')
+							.filter((form) => form.length > 0),
 				  }))
-				: [createEmptyIngredient()]
-		);
+				: [];
+		const baseRows =
+			mappedIngredients.length > 0
+				? mappedIngredients
+				: [createEmptyIngredient()];
+		const lastRow = baseRows[baseRows.length - 1];
+		const rowsWithBlank =
+			lastRow && isIngredientRowEmpty(lastRow)
+				? baseRows
+				: [...baseRows, createEmptyIngredient()];
+		setIngredients(rowsWithBlank);
+		setFormInputValues({});
+		setFormSuggestionSearchTerms({});
 		setInstructions(recipe.instructions);
 	};
 
@@ -712,14 +778,16 @@ export default function AdminPage() {
 											/>
 										)}
 									</div>
-									<button
-										className='rounded border border-gray-300 px-2 text-sm text-gray-600 hover:bg-gray-100'
-										onClick={() =>
-											removeIngredientRow(index)
-										}
-										type='button'>
-										Remove
-									</button>
+									{!isIngredientRowEmpty(ingredient) && (
+										<button
+											className='rounded border border-gray-300 px-2 text-sm text-gray-600 hover:bg-gray-100'
+											onClick={() =>
+												removeIngredientRow(index)
+											}
+											type='button'>
+											Remove
+										</button>
+									)}
 								</div>
 								<div className='w-full relative'>
 									<input
@@ -923,12 +991,6 @@ export default function AdminPage() {
 								</div>
 							</div>
 						))}
-						<button
-							className='self-start rounded border border-blue-600 px-3 py-1 text-sm font-medium text-blue-600 hover:bg-blue-50'
-							onClick={addIngredientRow}
-							type='button'>
-							Add ingredient
-						</button>
 					</div>
 				</div>
 				<div className='flex flex-col gap-2'>
