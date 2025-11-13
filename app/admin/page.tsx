@@ -62,13 +62,13 @@ function IngredientSuggestions({
 	}
 
 	return (
-		<div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg max-h-48 overflow-hidden">
-			<ScrollArea className="h-full">
+		<div className='absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg max-h-48 overflow-hidden'>
+			<ScrollArea className='h-full'>
 				<ul>
 					{suggestions.map((suggestion, idx) => (
 						<li
 							key={idx}
-							className="px-3 py-2 hover:bg-accent cursor-pointer text-sm"
+							className='px-3 py-2 hover:bg-accent cursor-pointer text-sm'
 							onMouseDown={(e) => {
 								e.preventDefault(); // Prevent input blur
 								onSelect(suggestion);
@@ -107,13 +107,13 @@ function UnitSuggestions({
 	}
 
 	return (
-		<div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg max-h-48 overflow-hidden">
-			<ScrollArea className="h-full">
+		<div className='absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg max-h-48 overflow-hidden'>
+			<ScrollArea className='h-full'>
 				<ul>
 					{suggestions.map((suggestion, idx) => (
 						<li
 							key={idx}
-							className="px-3 py-2 hover:bg-accent cursor-pointer text-sm"
+							className='px-3 py-2 hover:bg-accent cursor-pointer text-sm'
 							onMouseDown={(e) => {
 								e.preventDefault(); // Prevent input blur
 								onSelect(suggestion);
@@ -158,13 +158,13 @@ function FormSuggestions({
 	}
 
 	return (
-		<div className="absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg max-h-48 overflow-hidden">
-			<ScrollArea className="h-full">
+		<div className='absolute z-10 w-full mt-1 bg-card border rounded-md shadow-lg max-h-48 overflow-hidden'>
+			<ScrollArea className='h-full'>
 				<ul>
 					{suggestions.map((suggestion, idx) => (
 						<li
 							key={idx}
-							className="px-3 py-2 hover:bg-accent cursor-pointer text-sm"
+							className='px-3 py-2 hover:bg-accent cursor-pointer text-sm'
 							onMouseDown={(e) => {
 								e.preventDefault(); // Prevent input blur
 								onSelect(suggestion);
@@ -241,6 +241,15 @@ export default function AdminPage() {
 	const [cleanupTimeouts, setCleanupTimeouts] = useState<
 		Record<number, NodeJS.Timeout>
 	>({});
+	const [suggestionTimeouts, setSuggestionTimeouts] = useState<
+		Record<number, NodeJS.Timeout>
+	>({});
+	const [unitSuggestionTimeouts, setUnitSuggestionTimeouts] = useState<
+		Record<number, NodeJS.Timeout>
+	>({});
+	const [formSuggestionTimeouts, setFormSuggestionTimeouts] = useState<
+		Record<number, NodeJS.Timeout>
+	>({});
 
 	const isEditing = useMemo(() => editingId !== null, [editingId]);
 
@@ -251,6 +260,23 @@ export default function AdminPage() {
 		setEditingId(null);
 		setFormInputValues({});
 		setFormSuggestionSearchTerms({});
+		// Clear all pending timeouts
+		Object.values(suggestionTimeouts).forEach((timeout) =>
+			clearTimeout(timeout)
+		);
+		Object.values(unitSuggestionTimeouts).forEach((timeout) =>
+			clearTimeout(timeout)
+		);
+		Object.values(formSuggestionTimeouts).forEach((timeout) =>
+			clearTimeout(timeout)
+		);
+		Object.values(cleanupTimeouts).forEach((timeout) =>
+			clearTimeout(timeout)
+		);
+		setSuggestionTimeouts({});
+		setUnitSuggestionTimeouts({});
+		setFormSuggestionTimeouts({});
+		setCleanupTimeouts({});
 	};
 
 	const updateIngredientField = <Key extends keyof IngredientInput>(
@@ -635,15 +661,15 @@ export default function AdminPage() {
 	};
 
 	return (
-		<main className="flex flex-col gap-6 p-4 lg:p-6">
-			<header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<h1 className="text-2xl lg:text-3xl font-bold">Admin</h1>
-				<nav className="flex items-center gap-3 text-sm font-medium">
-					<Button variant="link" asChild className="p-0 h-auto">
-						<Link href="/">View recipes</Link>
+		<main className='flex flex-col gap-6 p-4 lg:p-6'>
+			<header className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+				<h1 className='text-2xl lg:text-3xl font-bold'>Admin</h1>
+				<nav className='flex items-center gap-3 text-sm font-medium'>
+					<Button variant='link' asChild className='p-0 h-auto'>
+						<Link href='/'>View recipes</Link>
 					</Button>
-					<Button variant="link" asChild className="p-0 h-auto">
-						<Link href="/admin/login">Admin login</Link>
+					<Button variant='link' asChild className='p-0 h-auto'>
+						<Link href='/admin/login'>Admin login</Link>
 					</Button>
 				</nav>
 			</header>
@@ -653,27 +679,29 @@ export default function AdminPage() {
 						{isEditing ? 'Edit Recipe' : 'Add New Recipe'}
 					</CardTitle>
 				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="flex flex-col gap-2">
-						<Label htmlFor="title">Title</Label>
+				<CardContent className='space-y-4'>
+					<div className='flex flex-col gap-2'>
+						<Label htmlFor='title'>Title</Label>
 						<Input
-							id="title"
-							placeholder="Title"
+							id='title'
+							placeholder='Title'
 							value={title}
 							onChange={(event) => setTitle(event.target.value)}
 						/>
 					</div>
-					<div className="flex flex-col gap-2">
+					<div className='flex flex-col gap-2'>
 						<Label>Ingredients</Label>
-						<div className="flex flex-col gap-3">
+						<div className='flex flex-col gap-3'>
 							{ingredients.map((ingredient, index) => (
-								<Card key={`ingredient-${index}`} className="p-3">
-									<div className="flex flex-col gap-2">
-										<div className="flex flex-wrap items-center gap-2">
+								<Card
+									key={`ingredient-${index}`}
+									className='p-3'>
+									<div className='flex flex-col gap-2'>
+										<div className='flex flex-wrap items-center gap-2'>
 											<Input
-												className="w-24"
-												inputMode="decimal"
-												placeholder="Amount"
+												className='w-24'
+												inputMode='decimal'
+												placeholder='Amount'
 												value={ingredient.amount}
 												onChange={(event) =>
 													updateIngredientField(
@@ -684,40 +712,61 @@ export default function AdminPage() {
 												}
 												onFocus={() => {
 													// Cancel any pending cleanup for this row
-													if (cleanupTimeouts[index]) {
+													if (
+														cleanupTimeouts[index]
+													) {
 														clearTimeout(
-															cleanupTimeouts[index]
+															cleanupTimeouts[
+																index
+															]
 														);
-														setCleanupTimeouts((prev) => {
-															const next = { ...prev };
-															delete next[index];
-															return next;
-														});
+														setCleanupTimeouts(
+															(prev) => {
+																const next = {
+																	...prev,
+																};
+																delete next[
+																	index
+																];
+																return next;
+															}
+														);
 													}
 												}}
 												onBlur={() => {
 													// Clean up empty rows after blur
-													const timeoutId = setTimeout(() => {
-														cleanupEmptyRows();
-														setCleanupTimeouts((prev) => {
-															const next = { ...prev };
-															delete next[index];
-															return next;
-														});
-													}, 200);
-													setCleanupTimeouts((prev) => ({
-														...prev,
-														[index]: timeoutId,
-													}));
+													const timeoutId =
+														setTimeout(() => {
+															cleanupEmptyRows();
+															setCleanupTimeouts(
+																(prev) => {
+																	const next =
+																		{
+																			...prev,
+																		};
+																	delete next[
+																		index
+																	];
+																	return next;
+																}
+															);
+														}, 200);
+													setCleanupTimeouts(
+														(prev) => ({
+															...prev,
+															[index]: timeoutId,
+														})
+													);
 												}}
 											/>
-											<div className="w-28 relative">
+											<div className='w-28 relative'>
 												<Input
-													className="w-full"
-													placeholder="Unit"
+													className='w-full'
+													placeholder='Unit'
 													value={ingredient.unit}
 													onChange={(event) => {
-														const value = event.target.value;
+														const value =
+															event.target.value;
 														updateIngredientField(
 															index,
 															'unit',
@@ -729,56 +778,168 @@ export default function AdminPage() {
 																[index]: value,
 															})
 														);
-														setActiveUnitSuggestionIndex(index);
+														setActiveUnitSuggestionIndex(
+															index
+														);
 													}}
 													onFocus={() => {
-														setActiveUnitSuggestionIndex(index);
+														// Cancel any pending unit suggestion timeout for this row
+														if (
+															unitSuggestionTimeouts[
+																index
+															]
+														) {
+															clearTimeout(
+																unitSuggestionTimeouts[
+																	index
+																]
+															);
+															setUnitSuggestionTimeouts(
+																(prev) => {
+																	const next =
+																		{
+																			...prev,
+																		};
+																	delete next[
+																		index
+																	];
+																	return next;
+																}
+															);
+														}
+														setActiveUnitSuggestionIndex(
+															index
+														);
 														setUnitSuggestionSearchTerms(
 															(prev) => ({
 																...prev,
-																[index]: ingredient.unit,
+																[index]:
+																	ingredient.unit,
 															})
 														);
 														// Cancel any pending cleanup for this row
-														if (cleanupTimeouts[index]) {
+														if (
+															cleanupTimeouts[
+																index
+															]
+														) {
 															clearTimeout(
-																cleanupTimeouts[index]
+																cleanupTimeouts[
+																	index
+																]
 															);
-															setCleanupTimeouts((prev) => {
-																const next = { ...prev };
-																delete next[index];
-																return next;
-															});
+															setCleanupTimeouts(
+																(prev) => {
+																	const next =
+																		{
+																			...prev,
+																		};
+																	delete next[
+																		index
+																	];
+																	return next;
+																}
+															);
 														}
 													}}
 													onBlur={() => {
 														// Delay to allow click on suggestion
-														setTimeout(() => {
-															setActiveUnitSuggestionIndex(null);
-														}, 200);
+														const unitSuggestionTimeoutId =
+															setTimeout(() => {
+																setActiveUnitSuggestionIndex(
+																	(
+																		current
+																	) => {
+																		// Only close if this is still the active index
+																		// (might have changed if user focused another input)
+																		return current ===
+																			index
+																			? null
+																			: current;
+																	}
+																);
+																setUnitSuggestionTimeouts(
+																	(prev) => {
+																		const next =
+																			{
+																				...prev,
+																			};
+																		delete next[
+																			index
+																		];
+																		return next;
+																	}
+																);
+															}, 200);
+														setUnitSuggestionTimeouts(
+															(prev) => ({
+																...prev,
+																[index]:
+																	unitSuggestionTimeoutId,
+															})
+														);
 														// Clean up empty rows after blur
-														const timeoutId = setTimeout(() => {
-															cleanupEmptyRows();
-															setCleanupTimeouts((prev) => {
-																const next = { ...prev };
-																delete next[index];
-																return next;
-															});
-														}, 200);
-														setCleanupTimeouts((prev) => ({
-															...prev,
-															[index]: timeoutId,
-														}));
+														const timeoutId =
+															setTimeout(() => {
+																cleanupEmptyRows();
+																setCleanupTimeouts(
+																	(prev) => {
+																		const next =
+																			{
+																				...prev,
+																			};
+																		delete next[
+																			index
+																		];
+																		return next;
+																	}
+																);
+															}, 200);
+														setCleanupTimeouts(
+															(prev) => ({
+																...prev,
+																[index]:
+																	timeoutId,
+															})
+														);
 													}}
 												/>
-												{activeUnitSuggestionIndex === index && (
+												{activeUnitSuggestionIndex ===
+													index && (
 													<UnitSuggestions
 														searchTerm={
-															unitSuggestionSearchTerms[index] ??
-															ingredient.unit
+															unitSuggestionSearchTerms[
+																index
+															] ?? ingredient.unit
 														}
 														allUnits={allUnits}
-														onSelect={(selectedUnit) => {
+														onSelect={(
+															selectedUnit
+														) => {
+															// Cancel any pending unit suggestion timeout
+															if (
+																unitSuggestionTimeouts[
+																	index
+																]
+															) {
+																clearTimeout(
+																	unitSuggestionTimeouts[
+																		index
+																	]
+																);
+																setUnitSuggestionTimeouts(
+																	(prev) => {
+																		const next =
+																			{
+																				...prev,
+																			};
+																		delete next[
+																			index
+																		];
+																		return next;
+																	}
+																);
+															}
 															updateIngredientField(
 																index,
 																'unit',
@@ -787,119 +948,265 @@ export default function AdminPage() {
 															setUnitSuggestionSearchTerms(
 																(prev) => ({
 																	...prev,
-																	[index]: selectedUnit,
+																	[index]:
+																		selectedUnit,
 																})
 															);
-															setActiveUnitSuggestionIndex(null);
+															setActiveUnitSuggestionIndex(
+																null
+															);
 														}}
 													/>
 												)}
 											</div>
-											<div className="flex-1 relative">
+											<div className='flex-1 relative'>
 												<Input
-													className="w-full"
-													placeholder="Ingredient name"
+													className='w-full'
+													placeholder='Ingredient name'
 													value={ingredient.item}
 													onChange={(event) => {
-														const value = event.target.value;
-														updateIngredientField(index, 'item', value);
-														setSuggestionSearchTerms((prev) => ({
-															...prev,
-															[index]: value,
-														}));
-														setActiveSuggestionIndex(index);
+														const value =
+															event.target.value;
+														updateIngredientField(
+															index,
+															'item',
+															value
+														);
+														setSuggestionSearchTerms(
+															(prev) => ({
+																...prev,
+																[index]: value,
+															})
+														);
+														setActiveSuggestionIndex(
+															index
+														);
 													}}
 													onFocus={() => {
-														setActiveSuggestionIndex(index);
-														setSuggestionSearchTerms((prev) => ({
-															...prev,
-															[index]: ingredient.item,
-														}));
+														// Cancel any pending suggestion timeout for this row
+														if (
+															suggestionTimeouts[
+																index
+															]
+														) {
+															clearTimeout(
+																suggestionTimeouts[
+																	index
+																]
+															);
+															setSuggestionTimeouts(
+																(prev) => {
+																	const next =
+																		{
+																			...prev,
+																		};
+																	delete next[
+																		index
+																	];
+																	return next;
+																}
+															);
+														}
+														setActiveSuggestionIndex(
+															index
+														);
+														setSuggestionSearchTerms(
+															(prev) => ({
+																...prev,
+																[index]:
+																	ingredient.item,
+															})
+														);
 														// Cancel any pending cleanup for this row
-														if (cleanupTimeouts[index]) {
-															clearTimeout(cleanupTimeouts[index]);
-															setCleanupTimeouts((prev) => {
-																const next = { ...prev };
-																delete next[index];
-																return next;
-															});
+														if (
+															cleanupTimeouts[
+																index
+															]
+														) {
+															clearTimeout(
+																cleanupTimeouts[
+																	index
+																]
+															);
+															setCleanupTimeouts(
+																(prev) => {
+																	const next =
+																		{
+																			...prev,
+																		};
+																	delete next[
+																		index
+																	];
+																	return next;
+																}
+															);
 														}
 													}}
 													onBlur={() => {
 														// Delay to allow click on suggestion
-														setTimeout(() => {
-															setActiveSuggestionIndex(null);
-														}, 200);
+														const suggestionTimeoutId =
+															setTimeout(() => {
+																setActiveSuggestionIndex(
+																	(
+																		current
+																	) => {
+																		// Only close if this is still the active index
+																		// (might have changed if user focused another input)
+																		return current ===
+																			index
+																			? null
+																			: current;
+																	}
+																);
+																setSuggestionTimeouts(
+																	(prev) => {
+																		const next =
+																			{
+																				...prev,
+																			};
+																		delete next[
+																			index
+																		];
+																		return next;
+																	}
+																);
+															}, 200);
+														setSuggestionTimeouts(
+															(prev) => ({
+																...prev,
+																[index]:
+																	suggestionTimeoutId,
+															})
+														);
 														// Clean up empty rows after blur
-														const timeoutId = setTimeout(() => {
-															cleanupEmptyRows();
-															setCleanupTimeouts((prev) => {
-																const next = { ...prev };
-																delete next[index];
-																return next;
-															});
-														}, 200);
-														setCleanupTimeouts((prev) => ({
-															...prev,
-															[index]: timeoutId,
-														}));
+														const timeoutId =
+															setTimeout(() => {
+																cleanupEmptyRows();
+																setCleanupTimeouts(
+																	(prev) => {
+																		const next =
+																			{
+																				...prev,
+																			};
+																		delete next[
+																			index
+																		];
+																		return next;
+																	}
+																);
+															}, 200);
+														setCleanupTimeouts(
+															(prev) => ({
+																...prev,
+																[index]:
+																	timeoutId,
+															})
+														);
 													}}
 												/>
-												{activeSuggestionIndex === index && (
+												{activeSuggestionIndex ===
+													index && (
 													<IngredientSuggestions
 														searchTerm={
-															suggestionSearchTerms[index] ??
-															ingredient.item
+															suggestionSearchTerms[
+																index
+															] ?? ingredient.item
 														}
-														allIngredients={allIngredients}
-														onSelect={(selectedItem) => {
+														allIngredients={
+															allIngredients
+														}
+														onSelect={(
+															selectedItem
+														) => {
+															// Cancel any pending suggestion timeout
+															if (
+																suggestionTimeouts[
+																	index
+																]
+															) {
+																clearTimeout(
+																	suggestionTimeouts[
+																		index
+																	]
+																);
+																setSuggestionTimeouts(
+																	(prev) => {
+																		const next =
+																			{
+																				...prev,
+																			};
+																		delete next[
+																			index
+																		];
+																		return next;
+																	}
+																);
+															}
 															updateIngredientField(
 																index,
 																'item',
 																selectedItem
 															);
-															setSuggestionSearchTerms((prev) => ({
-																...prev,
-																[index]: selectedItem,
-															}));
-															setActiveSuggestionIndex(null);
+															setSuggestionSearchTerms(
+																(prev) => ({
+																	...prev,
+																	[index]:
+																		selectedItem,
+																})
+															);
+															setActiveSuggestionIndex(
+																null
+															);
 														}}
 													/>
 												)}
 											</div>
-											{!isIngredientRowEmpty(ingredient) && (
+											{!isIngredientRowEmpty(
+												ingredient
+											) && (
 												<Button
-													variant="outline"
-													size="sm"
-													onClick={() => removeIngredientRow(index)}
-													type="button">
+													variant='outline'
+													size='sm'
+													onClick={() =>
+														removeIngredientRow(
+															index
+														)
+													}
+													type='button'>
 													Remove
 												</Button>
 											)}
 										</div>
-										<div className="w-full relative">
+										<div className='w-full relative'>
 											<Input
-												className="w-full text-sm"
-												placeholder="Forms (comma-separated, e.g., diced, chopped, minced)"
+												className='w-full text-sm'
+												placeholder='Forms (comma-separated, e.g., diced, chopped, minced)'
 												value={
 													formInputValues[index] ??
 													ingredient.forms.join(', ')
 												}
 												onChange={(event) => {
-													const value = event.target.value;
+													const value =
+														event.target.value;
 
 													// Store the raw input value to allow free typing
-													setFormInputValues((prev) => ({
-														...prev,
-														[index]: value,
-													}));
+													setFormInputValues(
+														(prev) => ({
+															...prev,
+															[index]: value,
+														})
+													);
 
 													// Extract the last form being typed (after last comma) for suggestions
-													const lastCommaIndex = value.lastIndexOf(',');
+													const lastCommaIndex =
+														value.lastIndexOf(',');
 													const currentFormInput =
 														lastCommaIndex >= 0
 															? value
-																	.substring(lastCommaIndex + 1)
+																	.substring(
+																		lastCommaIndex +
+																			1
+																	)
 																	.trim()
 															: value.trim();
 
@@ -907,135 +1214,335 @@ export default function AdminPage() {
 													const completedForms =
 														lastCommaIndex >= 0
 															? value
-																	.substring(0, lastCommaIndex)
+																	.substring(
+																		0,
+																		lastCommaIndex
+																	)
 																	.split(',')
-																	.map((f) => f.trim())
-																	.filter((f) => f.length > 0)
+																	.map((f) =>
+																		f.trim()
+																	)
+																	.filter(
+																		(f) =>
+																			f.length >
+																			0
+																	)
 															: [];
 
 													// Only add currentFormInput to forms if it's not empty
 													const forms =
-														currentFormInput.length > 0
-															? [...completedForms, currentFormInput]
+														currentFormInput.length >
+														0
+															? [
+																	...completedForms,
+																	currentFormInput,
+															  ]
 															: completedForms;
 
-													updateIngredientField(index, 'forms', forms);
-													setFormSuggestionSearchTerms((prev) => ({
-														...prev,
-														[index]: currentFormInput,
-													}));
-													setActiveFormSuggestionIndex(index);
+													updateIngredientField(
+														index,
+														'forms',
+														forms
+													);
+													setFormSuggestionSearchTerms(
+														(prev) => ({
+															...prev,
+															[index]:
+																currentFormInput,
+														})
+													);
+													setActiveFormSuggestionIndex(
+														index
+													);
 												}}
 												onFocus={() => {
-													setActiveFormSuggestionIndex(index);
+													// Cancel any pending form suggestion timeout for this row
+													if (
+														formSuggestionTimeouts[
+															index
+														]
+													) {
+														clearTimeout(
+															formSuggestionTimeouts[
+																index
+															]
+														);
+														setFormSuggestionTimeouts(
+															(prev) => {
+																const next = {
+																	...prev,
+																};
+																delete next[
+																	index
+																];
+																return next;
+															}
+														);
+													}
+													setActiveFormSuggestionIndex(
+														index
+													);
 													const currentValue =
-														formInputValues[index] ??
-														ingredient.forms.join(', ');
-													const lastCommaIndex = currentValue.lastIndexOf(',');
+														formInputValues[
+															index
+														] ??
+														ingredient.forms.join(
+															', '
+														);
+													const lastCommaIndex =
+														currentValue.lastIndexOf(
+															','
+														);
 													const currentFormInput =
 														lastCommaIndex >= 0
 															? currentValue
-																	.substring(lastCommaIndex + 1)
+																	.substring(
+																		lastCommaIndex +
+																			1
+																	)
 																	.trim()
 															: currentValue.trim();
-													setFormSuggestionSearchTerms((prev) => ({
-														...prev,
-														[index]: currentFormInput,
-													}));
+													setFormSuggestionSearchTerms(
+														(prev) => ({
+															...prev,
+															[index]:
+																currentFormInput,
+														})
+													);
 													// Cancel any pending cleanup for this row
-													if (cleanupTimeouts[index]) {
-														clearTimeout(cleanupTimeouts[index]);
-														setCleanupTimeouts((prev) => {
-															const next = { ...prev };
-															delete next[index];
-															return next;
-														});
+													if (
+														cleanupTimeouts[index]
+													) {
+														clearTimeout(
+															cleanupTimeouts[
+																index
+															]
+														);
+														setCleanupTimeouts(
+															(prev) => {
+																const next = {
+																	...prev,
+																};
+																delete next[
+																	index
+																];
+																return next;
+															}
+														);
 													}
 												}}
 												onBlur={() => {
 													// When blurring, sync the input value with the forms array
-													const currentValue = formInputValues[index];
-													if (currentValue !== undefined) {
+													const currentValue =
+														formInputValues[index];
+													if (
+														currentValue !==
+														undefined
+													) {
 														// Parse the final value and update forms
-														const finalForms = currentValue
-															.split(',')
-															.map((f) => f.trim())
-															.filter((f) => f.length > 0);
-														updateIngredientField(index, 'forms', finalForms);
+														const finalForms =
+															currentValue
+																.split(',')
+																.map((f) =>
+																	f.trim()
+																)
+																.filter(
+																	(f) =>
+																		f.length >
+																		0
+																);
+														updateIngredientField(
+															index,
+															'forms',
+															finalForms
+														);
 														// Clear the temporary input value
-														setFormInputValues((prev) => {
-															const next = { ...prev };
-															delete next[index];
-															return next;
-														});
+														setFormInputValues(
+															(prev) => {
+																const next = {
+																	...prev,
+																};
+																delete next[
+																	index
+																];
+																return next;
+															}
+														);
 													}
 													// Delay to allow click on suggestion
-													setTimeout(() => {
-														setActiveFormSuggestionIndex(null);
-													}, 200);
+													const formSuggestionTimeoutId =
+														setTimeout(() => {
+															setActiveFormSuggestionIndex(
+																(current) => {
+																	// Only close if this is still the active index
+																	// (might have changed if user focused another input)
+																	return current ===
+																		index
+																		? null
+																		: current;
+																}
+															);
+															setFormSuggestionTimeouts(
+																(prev) => {
+																	const next =
+																		{
+																			...prev,
+																		};
+																	delete next[
+																		index
+																	];
+																	return next;
+																}
+															);
+														}, 200);
+													setFormSuggestionTimeouts(
+														(prev) => ({
+															...prev,
+															[index]:
+																formSuggestionTimeoutId,
+														})
+													);
 													// Clean up empty rows after blur
-													const timeoutId = setTimeout(() => {
-														cleanupEmptyRows();
-														setCleanupTimeouts((prev) => {
-															const next = { ...prev };
-															delete next[index];
-															return next;
-														});
-													}, 200);
-													setCleanupTimeouts((prev) => ({
-														...prev,
-														[index]: timeoutId,
-													}));
+													const timeoutId =
+														setTimeout(() => {
+															cleanupEmptyRows();
+															setCleanupTimeouts(
+																(prev) => {
+																	const next =
+																		{
+																			...prev,
+																		};
+																	delete next[
+																		index
+																	];
+																	return next;
+																}
+															);
+														}, 200);
+													setCleanupTimeouts(
+														(prev) => ({
+															...prev,
+															[index]: timeoutId,
+														})
+													);
 												}}
 											/>
-											{activeFormSuggestionIndex === index && (
+											{activeFormSuggestionIndex ===
+												index && (
 												<FormSuggestions
 													searchTerm={
-														formSuggestionSearchTerms[index] ?? ''
+														formSuggestionSearchTerms[
+															index
+														] ?? ''
 													}
 													allForms={allForms}
-													currentForms={ingredient.forms}
-													onSelect={(selectedForm) => {
+													currentForms={
+														ingredient.forms
+													}
+													onSelect={(
+														selectedForm
+													) => {
+														// Cancel any pending form suggestion timeout
+														if (
+															formSuggestionTimeouts[
+																index
+															]
+														) {
+															clearTimeout(
+																formSuggestionTimeouts[
+																	index
+																]
+															);
+															setFormSuggestionTimeouts(
+																(prev) => {
+																	const next =
+																		{
+																			...prev,
+																		};
+																	delete next[
+																		index
+																	];
+																	return next;
+																}
+															);
+														}
 														const currentValue =
-															formInputValues[index] ??
-															ingredient.forms.join(', ');
-														const lastCommaIndex = currentValue.lastIndexOf(',');
+															formInputValues[
+																index
+															] ??
+															ingredient.forms.join(
+																', '
+															);
+														const lastCommaIndex =
+															currentValue.lastIndexOf(
+																','
+															);
 
 														// Build the new value: completed forms + selected form
 														let newValue: string;
-														if (lastCommaIndex >= 0) {
+														if (
+															lastCommaIndex >= 0
+														) {
 															// Replace everything after the last comma with the selected form
-															const beforeComma = currentValue
-																.substring(0, lastCommaIndex + 1)
-																.trim();
+															const beforeComma =
+																currentValue
+																	.substring(
+																		0,
+																		lastCommaIndex +
+																			1
+																	)
+																	.trim();
 															newValue = `${beforeComma} ${selectedForm}`;
 														} else {
 															// No comma, replace the entire value or append
-															if (currentValue.trim().length > 0) {
-																newValue = selectedForm;
+															if (
+																currentValue.trim()
+																	.length > 0
+															) {
+																newValue =
+																	selectedForm;
 															} else {
-																newValue = selectedForm;
+																newValue =
+																	selectedForm;
 															}
 														}
 
 														// Update the input value
-														setFormInputValues((prev) => ({
-															...prev,
-															[index]: newValue,
-														}));
+														setFormInputValues(
+															(prev) => ({
+																...prev,
+																[index]:
+																	newValue,
+															})
+														);
 
 														// Update forms array - parse the new value
-														const updatedForms = newValue
-															.split(',')
-															.map((f) => f.trim())
-															.filter((f) => f.length > 0);
+														const updatedForms =
+															newValue
+																.split(',')
+																.map((f) =>
+																	f.trim()
+																)
+																.filter(
+																	(f) =>
+																		f.length >
+																		0
+																);
 
-														updateIngredientField(index, 'forms', updatedForms);
-														setFormSuggestionSearchTerms((prev) => ({
-															...prev,
-															[index]: '',
-														}));
-														setActiveFormSuggestionIndex(null);
+														updateIngredientField(
+															index,
+															'forms',
+															updatedForms
+														);
+														setFormSuggestionSearchTerms(
+															(prev) => ({
+																...prev,
+																[index]: '',
+															})
+														);
+														setActiveFormSuggestionIndex(
+															null
+														);
 													}}
 												/>
 											)}
@@ -1045,120 +1552,181 @@ export default function AdminPage() {
 							))}
 						</div>
 					</div>
-					<div className="flex flex-col gap-2">
-						<Label htmlFor="instructions">Instructions</Label>
+					<div className='flex flex-col gap-2'>
+						<Label htmlFor='instructions'>Instructions</Label>
 						<Textarea
-							id="instructions"
-							placeholder="Instructions"
+							id='instructions'
+							placeholder='Instructions'
 							rows={6}
 							value={instructions}
-							onChange={(event) => setInstructions(event.target.value)}
+							onChange={(event) =>
+								setInstructions(event.target.value)
+							}
 						/>
 					</div>
-					<div className="flex items-center gap-2">
-						<Button onClick={submit} type="button">
+					<div className='flex items-center gap-2'>
+						<Button onClick={submit} type='button'>
 							{isEditing ? 'Update recipe' : 'Add recipe'}
 						</Button>
 						{isEditing && (
-							<Button variant="outline" onClick={resetForm} type="button">
+							<Button
+								variant='outline'
+								onClick={resetForm}
+								type='button'>
 								Cancel
 							</Button>
 						)}
 					</div>
 				</CardContent>
 			</Card>
-			<section className="flex flex-col gap-4">
-				<h2 className="text-xl lg:text-2xl font-semibold">Existing recipes</h2>
+			<section className='flex flex-col gap-4'>
+				<h2 className='text-xl lg:text-2xl font-semibold'>
+					Existing recipes
+				</h2>
 				{recipes.length === 0 ? (
-					<p className="text-sm text-muted-foreground">No recipes yet.</p>
+					<p className='text-sm text-muted-foreground'>
+						No recipes yet.
+					</p>
 				) : (
-					<div className="flex flex-col gap-4">
+					<div className='flex flex-col gap-4'>
 						{recipes.map((recipe) => {
-							const recipeIngredients = Array.isArray(recipe.ingredients)
+							const recipeIngredients = Array.isArray(
+								recipe.ingredients
+							)
 								? recipe.ingredients
 								: [];
 							return (
 								<Card key={recipe._id}>
 									<CardHeader>
-										<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-											<CardTitle className="text-lg">{recipe.title}</CardTitle>
-											<div className="flex items-center gap-2">
+										<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+											<CardTitle className='text-lg'>
+												{recipe.title}
+											</CardTitle>
+											<div className='flex items-center gap-2'>
 												<Button
-													variant="outline"
-													size="sm"
-													onClick={() => handleEdit(recipe)}>
+													variant='outline'
+													size='sm'
+													onClick={() =>
+														handleEdit(recipe)
+													}>
 													Edit
 												</Button>
 												<Button
-													variant="destructive"
-													size="sm"
-													onClick={() => handleDelete(recipe._id)}>
+													variant='destructive'
+													size='sm'
+													onClick={() =>
+														handleDelete(recipe._id)
+													}>
 													Delete
 												</Button>
 											</div>
 										</div>
 									</CardHeader>
-									<CardContent className="space-y-3">
-										<div className="text-sm">
+									<CardContent className='space-y-3'>
+										<div className='text-sm'>
 											<strong>Ingredients:</strong>
 											{recipeIngredients.length > 0 ? (
-												<ul className="mt-1 list-disc pl-5 space-y-1">
+												<ul className='mt-1 list-disc pl-5 space-y-1'>
 													{recipeIngredients.map(
 														(
 															ingredient: {
 																item: string;
-																forms?: string[] | null;
+																forms?:
+																	| string[]
+																	| null;
 																quantity?: {
-																	amount?: number | null;
-																	unit?: string | null;
+																	amount?:
+																		| number
+																		| null;
+																	unit?:
+																		| string
+																		| null;
 																} | null;
 															},
 															index: number
 														) => {
 															const amount =
-																ingredient.quantity?.amount ?? undefined;
+																ingredient
+																	.quantity
+																	?.amount ??
+																undefined;
 															const unit =
-																ingredient.quantity?.unit?.trim() ?? '';
-															const hasAmount = typeof amount === 'number';
+																ingredient.quantity?.unit?.trim() ??
+																'';
+															const hasAmount =
+																typeof amount ===
+																'number';
 															const formattedAmount =
-																hasAmount && Number.isFinite(amount)
-																	? Number.isInteger(amount)
-																		? String(amount)
-																		: Number(amount.toFixed(2))
-																				.toString()
-																				.replace(/\.?0+$/, '')
-																	: '';
-															const quantityText = [
-																formattedAmount,
-																unit,
-															]
-																.filter(
-																	(value) => value && value.length > 0
+																hasAmount &&
+																Number.isFinite(
+																	amount
 																)
-																.join(' ');
+																	? Number.isInteger(
+																			amount
+																	  )
+																		? String(
+																				amount
+																		  )
+																		: Number(
+																				amount.toFixed(
+																					2
+																				)
+																		  )
+																				.toString()
+																				.replace(
+																					/\.?0+$/,
+																					''
+																				)
+																	: '';
+															const quantityText =
+																[
+																	formattedAmount,
+																	unit,
+																]
+																	.filter(
+																		(
+																			value
+																		) =>
+																			value &&
+																			value.length >
+																				0
+																	)
+																	.join(' ');
 
 															const formsText =
 																ingredient.forms &&
-																ingredient.forms.length > 0
-																	? ` (${ingredient.forms.join(', ')})`
+																ingredient.forms
+																	.length > 0
+																	? ` (${ingredient.forms.join(
+																			', '
+																	  )})`
 																	: '';
 
 															return (
 																<li
 																	key={`${ingredient.item}-${quantityText}-${index}`}>
-																	{quantityText.length > 0 && (
-																		<span className="font-medium">
-																			{quantityText}
+																	{quantityText.length >
+																		0 && (
+																		<span className='font-medium'>
+																			{
+																				quantityText
+																			}
 																		</span>
 																	)}
-																	{quantityText.length > 0 && ingredient.item
+																	{quantityText.length >
+																		0 &&
+																	ingredient.item
 																		? ' — '
 																		: ' '}
 																	<span>
-																		{ingredient.item}
+																		{
+																			ingredient.item
+																		}
 																		{formsText && (
-																			<span className="text-muted-foreground italic">
-																				{formsText}
+																			<span className='text-muted-foreground italic'>
+																				{
+																					formsText
+																				}
 																			</span>
 																		)}
 																	</span>
@@ -1168,14 +1736,14 @@ export default function AdminPage() {
 													)}
 												</ul>
 											) : (
-												<p className="mt-1 text-muted-foreground">
+												<p className='mt-1 text-muted-foreground'>
 													No ingredients listed.
 												</p>
 											)}
 										</div>
-										<div className="text-sm">
+										<div className='text-sm'>
 											<strong>Instructions:</strong>
-											<p className="whitespace-pre-line mt-1">
+											<p className='whitespace-pre-line mt-1'>
 												{recipe.instructions}
 											</p>
 										</div>
@@ -1190,17 +1758,17 @@ export default function AdminPage() {
 			{/* Unused Ingredients Section */}
 			<Card>
 				<CardHeader>
-					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+					<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
 						<div>
 							<CardTitle>Unused Ingredients</CardTitle>
-							<p className="text-sm text-muted-foreground mt-1">
+							<p className='text-sm text-muted-foreground mt-1'>
 								Ingredients that are not used in any recipe
 							</p>
 						</div>
 						{unusedIngredients.length > 0 && (
 							<Button
-								variant="destructive"
-								size="sm"
+								variant='destructive'
+								size='sm'
 								onClick={handleRemoveUnusedIngredients}>
 								Delete All ({unusedIngredients.length})
 							</Button>
@@ -1209,27 +1777,32 @@ export default function AdminPage() {
 				</CardHeader>
 				<CardContent>
 					{unusedIngredients.length > 0 ? (
-						<div className="flex flex-wrap gap-2">
+						<div className='flex flex-wrap gap-2'>
 							{unusedIngredients.map((ingredient) => (
 								<Badge
 									key={ingredient._id}
-									variant="secondary"
-									className="group">
+									variant='secondary'
+									className='group'>
 									{ingredient.item}
 									<Button
-										variant="ghost"
-										size="icon"
-										className="ml-1 h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity"
-										onClick={() => handleRemoveIngredient(ingredient._id)}
-										title="Delete ingredient">
-										<X className="h-3 w-3" />
+										variant='ghost'
+										size='icon'
+										className='ml-1 h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity'
+										onClick={() =>
+											handleRemoveIngredient(
+												ingredient._id
+											)
+										}
+										title='Delete ingredient'>
+										<X className='h-3 w-3' />
 									</Button>
 								</Badge>
 							))}
 						</div>
 					) : (
-						<p className="text-sm text-muted-foreground">
-							No unused ingredients. All ingredients are being used in recipes.
+						<p className='text-sm text-muted-foreground'>
+							No unused ingredients. All ingredients are being
+							used in recipes.
 						</p>
 					)}
 				</CardContent>
@@ -1238,17 +1811,17 @@ export default function AdminPage() {
 			{/* Unused Ingredient Forms Section */}
 			<Card>
 				<CardHeader>
-					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+					<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
 						<div>
 							<CardTitle>Unused Ingredient Forms</CardTitle>
-							<p className="text-sm text-muted-foreground mt-1">
+							<p className='text-sm text-muted-foreground mt-1'>
 								Forms that are not used in any recipe
 							</p>
 						</div>
 						{unusedIngredientForms.length > 0 && (
 							<Button
-								variant="destructive"
-								size="sm"
+								variant='destructive'
+								size='sm'
 								onClick={handleRemoveUnusedIngredientForms}>
 								Delete All ({unusedIngredientForms.length})
 							</Button>
@@ -1257,24 +1830,30 @@ export default function AdminPage() {
 				</CardHeader>
 				<CardContent>
 					{unusedIngredientForms.length > 0 ? (
-						<div className="flex flex-wrap gap-2">
+						<div className='flex flex-wrap gap-2'>
 							{unusedIngredientForms.map((form) => (
-								<Badge key={form._id} variant="secondary" className="group">
+								<Badge
+									key={form._id}
+									variant='secondary'
+									className='group'>
 									{form.form}
 									<Button
-										variant="ghost"
-										size="icon"
-										className="ml-1 h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity"
-										onClick={() => handleRemoveIngredientForm(form._id)}
-										title="Delete form">
-										<X className="h-3 w-3" />
+										variant='ghost'
+										size='icon'
+										className='ml-1 h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity'
+										onClick={() =>
+											handleRemoveIngredientForm(form._id)
+										}
+										title='Delete form'>
+										<X className='h-3 w-3' />
 									</Button>
 								</Badge>
 							))}
 						</div>
 					) : (
-						<p className="text-sm text-muted-foreground">
-							No unused ingredient forms. All forms are being used in recipes.
+						<p className='text-sm text-muted-foreground'>
+							No unused ingredient forms. All forms are being used
+							in recipes.
 						</p>
 					)}
 				</CardContent>
@@ -1283,17 +1862,17 @@ export default function AdminPage() {
 			{/* Unused Units Section */}
 			<Card>
 				<CardHeader>
-					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+					<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
 						<div>
 							<CardTitle>Unused Units</CardTitle>
-							<p className="text-sm text-muted-foreground mt-1">
+							<p className='text-sm text-muted-foreground mt-1'>
 								Units that are not used in any recipe
 							</p>
 						</div>
 						{unusedUnits.length > 0 && (
 							<Button
-								variant="destructive"
-								size="sm"
+								variant='destructive'
+								size='sm'
 								onClick={handleRemoveUnusedUnits}>
 								Delete All ({unusedUnits.length})
 							</Button>
@@ -1302,24 +1881,30 @@ export default function AdminPage() {
 				</CardHeader>
 				<CardContent>
 					{unusedUnits.length > 0 ? (
-						<div className="flex flex-wrap gap-2">
+						<div className='flex flex-wrap gap-2'>
 							{unusedUnits.map((unit) => (
-								<Badge key={unit._id} variant="secondary" className="group">
+								<Badge
+									key={unit._id}
+									variant='secondary'
+									className='group'>
 									{unit.unit}
 									<Button
-										variant="ghost"
-										size="icon"
-										className="ml-1 h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity"
-										onClick={() => handleRemoveUnit(unit._id)}
-										title="Delete unit">
-										<X className="h-3 w-3" />
+										variant='ghost'
+										size='icon'
+										className='ml-1 h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity'
+										onClick={() =>
+											handleRemoveUnit(unit._id)
+										}
+										title='Delete unit'>
+										<X className='h-3 w-3' />
 									</Button>
 								</Badge>
 							))}
 						</div>
 					) : (
-						<p className="text-sm text-muted-foreground">
-							No unused units. All units are being used in recipes.
+						<p className='text-sm text-muted-foreground'>
+							No unused units. All units are being used in
+							recipes.
 						</p>
 					)}
 				</CardContent>
