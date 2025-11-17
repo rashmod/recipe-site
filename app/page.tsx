@@ -181,6 +181,7 @@ export default function Home() {
 	);
 	const [selectedForms, setSelectedForms] = useState<SelectedForms>({});
 	const [searchQuery, setSearchQuery] = useState('');
+	const [servings, setServings] = useState<number>(1);
 
 	const ingredientFormsMap = useMemo(() => {
 		const map: Record<string, string[]> = {};
@@ -288,7 +289,8 @@ export default function Home() {
 			core?: boolean;
 			proteinPer100g?: number | null;
 			quantity?: { amount?: number | null; unit?: string | null };
-		}>
+		}>,
+		scaleFactor: number = 1
 	): number | null => {
 		let total = 0;
 		let hasCoreIngredients = false;
@@ -309,11 +311,30 @@ export default function Home() {
 				Number.isFinite(proteinPer100g) &&
 				(unit === 'gram' || unit === 'grams' || unit === 'g')
 			) {
-				total += (amount / 100) * proteinPer100g;
+				total += ((amount * scaleFactor) / 100) * proteinPer100g;
 			}
 		}
 
 		return hasCoreIngredients ? total : null;
+	};
+
+	const formatAmount = (
+		amount: number | null | undefined,
+		scaleFactor: number = 1
+	): string => {
+		if (amount === undefined || amount === null) {
+			return '';
+		}
+		if (!Number.isFinite(amount)) {
+			return '';
+		}
+		const scaled = amount * scaleFactor;
+		if (Number.isInteger(scaled)) {
+			return String(scaled);
+		}
+		return Number(scaled.toFixed(2))
+			.toString()
+			.replace(/\.?0+$/, '');
 	};
 
 	return (
@@ -418,6 +439,29 @@ export default function Home() {
 				</header>
 
 				<div className='flex-1 overflow-y-auto p-4 lg:p-6'>
+					{recipes.length > 0 && (
+						<div className='mb-4 flex items-center gap-2'>
+							<span className='text-sm text-muted-foreground'>
+								Servings:
+							</span>
+							<div className='flex gap-1'>
+								{[1, 2, 3, 4, 5, 6].map((num) => (
+									<Button
+										key={num}
+										variant={
+											servings === num
+												? 'default'
+												: 'outline'
+										}
+										size='sm'
+										onClick={() => setServings(num)}
+										className='min-w-[2.5rem]'>
+										{num}
+									</Button>
+								))}
+							</div>
+						</div>
+					)}
 					{recipes.length === 0 ? (
 						<Card>
 							<CardContent className='py-8 text-center'>
@@ -436,7 +480,11 @@ export default function Home() {
 								)
 									? recipe.ingredients
 									: [];
-								const totalProtein = calculateTotalProtein(ingredientItems);
+								const scaleFactor = servings;
+								const totalProtein = calculateTotalProtein(
+									ingredientItems,
+									scaleFactor
+								);
 								const instructionSteps = recipe.instructions
 									.split('\n')
 									.map((line) => line.trim())
@@ -445,14 +493,50 @@ export default function Home() {
 									<Card key={recipe._id}>
 										<CardHeader>
 											<div>
-												<CardTitle className='text-2xl'>
-													{recipe.title}
-												</CardTitle>
+												<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+													<CardTitle className='text-2xl'>
+														{recipe.title}
+													</CardTitle>
+													<div className='flex items-center gap-2'>
+														<span className='text-sm text-muted-foreground whitespace-nowrap'>
+															Servings:
+														</span>
+														<div className='flex gap-1'>
+															{[
+																1, 2, 3, 4, 5,
+																6,
+															].map((num) => (
+																<Button
+																	key={num}
+																	variant={
+																		servings ===
+																		num
+																			? 'default'
+																			: 'outline'
+																	}
+																	size='sm'
+																	onClick={() =>
+																		setServings(
+																			num
+																		)
+																	}
+																	className='min-w-[2.5rem]'>
+																	{num}
+																</Button>
+															))}
+														</div>
+													</div>
+												</div>
 												{totalProtein !== null && (
 													<p className='text-sm text-muted-foreground mt-1'>
-														Total protein: {totalProtein.toFixed(1)}g
+														Total protein:{' '}
+														{totalProtein.toFixed(
+															1
+														)}
+														g
 														<span className='text-xs ml-1'>
-															(from core ingredients)
+															(from core
+															ingredients)
 														</span>
 													</p>
 												)}
@@ -478,31 +562,11 @@ export default function Home() {
 																const unit =
 																	ingredient.quantity?.unit?.trim() ??
 																	'';
-																const hasAmount =
-																	typeof amount ===
-																	'number';
 																const formattedAmount =
-																	hasAmount &&
-																	Number.isFinite(
-																		amount
-																	)
-																		? Number.isInteger(
-																				amount
-																		  )
-																			? String(
-																					amount
-																			  )
-																			: Number(
-																					amount.toFixed(
-																						2
-																					)
-																			  )
-																					.toString()
-																					.replace(
-																						/\.?0+$/,
-																						''
-																					)
-																		: '';
+																	formatAmount(
+																		amount,
+																		scaleFactor
+																	);
 																const quantityText =
 																	[
 																		formattedAmount,

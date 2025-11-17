@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Id } from '../../../convex/_generated/dataModel';
 
@@ -26,17 +28,23 @@ type RecipeListProps = {
 };
 
 export function RecipeList({ recipes, onEdit, onDelete }: RecipeListProps) {
-	const formatAmount = (amount: number | null | undefined): string => {
+	const [servings, setServings] = useState<number>(1);
+
+	const formatAmount = (
+		amount: number | null | undefined,
+		scaleFactor: number = 1
+	): string => {
 		if (amount === undefined || amount === null) {
 			return '';
 		}
 		if (!Number.isFinite(amount)) {
 			return '';
 		}
-		if (Number.isInteger(amount)) {
-			return String(amount);
+		const scaled = amount * scaleFactor;
+		if (Number.isInteger(scaled)) {
+			return String(scaled);
 		}
-		return Number(amount.toFixed(2))
+		return Number(scaled.toFixed(2))
 			.toString()
 			.replace(/\.?0+$/, '');
 	};
@@ -46,7 +54,8 @@ export function RecipeList({ recipes, onEdit, onDelete }: RecipeListProps) {
 			core?: boolean;
 			proteinPer100g?: number | null;
 			quantity?: { amount?: number | null; unit?: string | null };
-		}>
+		}>,
+		scaleFactor: number = 1
 	): number | null => {
 		let total = 0;
 		let hasCoreIngredients = false;
@@ -67,7 +76,7 @@ export function RecipeList({ recipes, onEdit, onDelete }: RecipeListProps) {
 				Number.isFinite(proteinPer100g) &&
 				(unit === 'gram' || unit === 'grams' || unit === 'g')
 			) {
-				total += (amount / 100) * proteinPer100g;
+				total += ((amount * scaleFactor) / 100) * proteinPer100g;
 			}
 		}
 
@@ -80,22 +89,69 @@ export function RecipeList({ recipes, onEdit, onDelete }: RecipeListProps) {
 
 	return (
 		<div className='flex flex-col gap-4'>
+			<div className='flex items-center gap-2'>
+				<span className='text-sm text-muted-foreground'>Servings:</span>
+				<div className='flex gap-1'>
+					{[1, 2, 3, 4, 5, 6].map((num) => (
+						<Button
+							key={num}
+							variant={servings === num ? 'default' : 'outline'}
+							size='sm'
+							onClick={() => setServings(num)}
+							className='min-w-[2.5rem]'>
+							{num}
+						</Button>
+					))}
+				</div>
+			</div>
 			{recipes.map((recipe) => {
 				const recipeIngredients = Array.isArray(recipe.ingredients)
 					? recipe.ingredients
 					: [];
-				const totalProtein = calculateTotalProtein(recipeIngredients);
+				const scaleFactor = servings;
+				const totalProtein = calculateTotalProtein(
+					recipeIngredients,
+					scaleFactor
+				);
 				return (
 					<Card key={recipe._id}>
 						<CardHeader>
 							<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-								<div>
-									<CardTitle className='text-lg'>
-										{recipe.title}
-									</CardTitle>
+								<div className='flex-1'>
+									<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+										<CardTitle className='text-lg'>
+											{recipe.title}
+										</CardTitle>
+										<div className='flex items-center gap-2'>
+											<span className='text-sm text-muted-foreground whitespace-nowrap'>
+												Servings:
+											</span>
+											<div className='flex gap-1'>
+												{[1, 2, 3, 4, 5, 6].map(
+													(num) => (
+														<Button
+															key={num}
+															variant={
+																servings === num
+																	? 'default'
+																	: 'outline'
+															}
+															size='sm'
+															onClick={() =>
+																setServings(num)
+															}
+															className='min-w-[2.5rem]'>
+															{num}
+														</Button>
+													)
+												)}
+											</div>
+										</div>
+									</div>
 									{totalProtein !== null && (
 										<p className='text-sm text-muted-foreground mt-1'>
-											Total protein: {totalProtein.toFixed(1)}g
+											Total protein:{' '}
+											{totalProtein.toFixed(1)}g
 											<span className='text-xs ml-1'>
 												(from core ingredients)
 											</span>
@@ -131,7 +187,10 @@ export function RecipeList({ recipes, onEdit, onDelete }: RecipeListProps) {
 													ingredient.quantity?.unit?.trim() ??
 													'';
 												const formattedAmount =
-													formatAmount(amount);
+													formatAmount(
+														amount,
+														scaleFactor
+													);
 												const quantityText = [
 													formattedAmount,
 													unit,
