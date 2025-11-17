@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { api } from '../convex/_generated/api';
 import { useQuery } from 'convex/react';
 import { useMemo, useState } from 'react';
-import { Filter, Menu } from 'lucide-react';
+import { Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,19 +20,27 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
+type SelectedForms = Record<string, string[]>;
+
 function FilterSidebar({
 	uniqueIngredients,
 	selectedIngredients,
+	selectedForms,
+	ingredientFormsMap,
 	searchQuery,
 	onSearchChange,
 	onToggleIngredient,
+	onToggleForm,
 	onClearFilters,
 }: {
 	uniqueIngredients: string[];
 	selectedIngredients: string[];
+	selectedForms: SelectedForms;
+	ingredientFormsMap: Record<string, string[]>;
 	searchQuery: string;
 	onSearchChange: (query: string) => void;
 	onToggleIngredient: (ingredient: string) => void;
+	onToggleForm: (ingredient: string, form: string) => void;
 	onClearFilters: () => void;
 }) {
 	const filteredIngredients = useMemo(() => {
@@ -83,25 +91,73 @@ function FilterSidebar({
 						filteredIngredients.map((ingredient) => {
 							const isSelected =
 								selectedIngredients.includes(ingredient);
+							const formsForIngredient =
+								ingredientFormsMap[ingredient] ?? [];
+							const isFormFilterActive =
+								(selectedForms[ingredient]?.length ?? 0) > 0;
 							return (
-								<label
-									key={ingredient}
-									className='flex items-center gap-3 rounded-md p-2 hover:bg-accent cursor-pointer'>
-									<Checkbox
-										checked={isSelected}
-										onCheckedChange={() =>
-											onToggleIngredient(ingredient)
-										}
-									/>
-									<span
-										className={`text-sm ${
-											isSelected
-												? 'font-medium text-primary'
-												: 'text-foreground'
-										}`}>
-										{ingredient}
-									</span>
-								</label>
+								<div key={ingredient}>
+									<label className='flex items-center gap-3 rounded-md p-2 hover:bg-accent cursor-pointer'>
+										<Checkbox
+											checked={isSelected}
+											onCheckedChange={() =>
+												onToggleIngredient(ingredient)
+											}
+										/>
+										<span
+											className={`text-sm ${
+												isSelected
+													? 'font-medium text-primary'
+													: 'text-foreground'
+											}`}>
+											{ingredient}
+											{isSelected &&
+												isFormFilterActive &&
+												' • form filter'}
+										</span>
+									</label>
+
+									{isSelected &&
+										formsForIngredient.length > 0 && (
+											<div className='pl-10 pb-2'>
+												<div className='text-xs text-muted-foreground mb-1'>
+													Filter by form
+												</div>
+												<div className='space-y-1'>
+													{formsForIngredient.map(
+														(form) => {
+															const isFormSelected =
+																selectedForms[
+																	ingredient
+																]?.includes(
+																	form
+																) ?? false;
+															return (
+																<label
+																	key={`${ingredient}-${form}`}
+																	className='flex items-center gap-2 rounded-md py-1 px-2 hover:bg-muted cursor-pointer'>
+																	<Checkbox
+																		checked={
+																			isFormSelected
+																		}
+																		onCheckedChange={() =>
+																			onToggleForm(
+																				ingredient,
+																				form
+																			)
+																		}
+																	/>
+																	<span className='text-xs'>
+																		{form}
+																	</span>
+																</label>
+															);
+														}
+													)}
+												</div>
+											</div>
+										)}
+								</div>
 							);
 						})
 					) : (
@@ -123,7 +179,35 @@ export default function Home() {
 	const [selectedIngredients, setSelectedIngredients] = useState<string[]>(
 		[]
 	);
+	const [selectedForms, setSelectedForms] = useState<SelectedForms>({});
 	const [searchQuery, setSearchQuery] = useState('');
+
+	const ingredientFormsMap = useMemo(() => {
+		const map: Record<string, string[]> = {};
+		const allRecipes = allRecipesQuery ?? [];
+		for (const recipe of allRecipes) {
+			const recipeIngredients = Array.isArray(recipe.ingredients)
+				? recipe.ingredients
+				: [];
+			for (const ingredient of recipeIngredients) {
+				if (!ingredient.item) {
+					continue;
+				}
+				if (!map[ingredient.item]) {
+					map[ingredient.item] = [];
+				}
+				for (const form of ingredient.forms ?? []) {
+					if (!map[ingredient.item].includes(form)) {
+						map[ingredient.item].push(form);
+					}
+				}
+				map[ingredient.item].sort((a, b) =>
+					a.localeCompare(b, undefined, { sensitivity: 'base' })
+				);
+			}
+		}
+		return map;
+	}, [allRecipesQuery]);
 
 	// Filter recipes based on selected ingredients
 	const recipes = useMemo(() => {
@@ -132,25 +216,68 @@ export default function Home() {
 			return allRecipes;
 		}
 		return allRecipes.filter((recipe) => {
-			const recipeIngredientNames = recipe.ingredients.map(
+			const recipeIngredients = Array.isArray(recipe.ingredients)
+				? recipe.ingredients
+				: [];
+			const recipeIngredientNames = recipeIngredients.map(
 				(ing) => ing.item
 			);
-			return selectedIngredients.every((selected) =>
-				recipeIngredientNames.includes(selected)
-			);
+			return selectedIngredients.every((selected) => {
+				if (!recipeIngredientNames.includes(selected)) {
+					return false;
+				}
+				const requiredForms = selectedForms[selected] ?? [];
+				if (requiredForms.length === 0) {
+					return true;
+				}
+				const recipeIngredient = recipeIngredients.find(
+					(ing) => ing.item === selected
+				);
+				const recipeForms = recipeIngredient?.forms ?? [];
+				return requiredForms.every((form) =>
+					recipeForms.includes(form)
+				);
+			});
 		});
-	}, [allRecipesQuery, selectedIngredients]);
+	}, [allRecipesQuery, selectedIngredients, selectedForms]);
 
 	const toggleIngredient = (ingredient: string) => {
-		setSelectedIngredients((prev) =>
-			prev.includes(ingredient)
-				? prev.filter((ing) => ing !== ingredient)
-				: [...prev, ingredient]
-		);
+		setSelectedIngredients((prev) => {
+			const exists = prev.includes(ingredient);
+			if (exists) {
+				setSelectedForms((prevForms) => {
+					const rest = { ...prevForms };
+					delete rest[ingredient];
+					return rest;
+				});
+				return prev.filter((ing) => ing !== ingredient);
+			}
+			return [...prev, ingredient];
+		});
+	};
+
+	const toggleForm = (ingredient: string, form: string) => {
+		setSelectedForms((prev) => {
+			const currentForms = prev[ingredient] ?? [];
+			const exists = currentForms.includes(form);
+			const nextForms = exists
+				? currentForms.filter((f) => f !== form)
+				: [...currentForms, form];
+			if (nextForms.length === 0) {
+				const rest = { ...prev };
+				delete rest[ingredient];
+				return rest;
+			}
+			return {
+				...prev,
+				[ingredient]: nextForms,
+			};
+		});
 	};
 
 	const clearFilters = () => {
 		setSelectedIngredients([]);
+		setSelectedForms({});
 		setSearchQuery('');
 	};
 
@@ -178,9 +305,12 @@ export default function Home() {
 					<FilterSidebar
 						uniqueIngredients={uniqueIngredients}
 						selectedIngredients={selectedIngredients}
+						selectedForms={selectedForms}
+						ingredientFormsMap={ingredientFormsMap}
 						searchQuery={searchQuery}
 						onSearchChange={setSearchQuery}
 						onToggleIngredient={toggleIngredient}
+						onToggleForm={toggleForm}
 						onClearFilters={clearFilters}
 					/>
 				</SheetContent>
@@ -191,9 +321,12 @@ export default function Home() {
 				<FilterSidebar
 					uniqueIngredients={uniqueIngredients}
 					selectedIngredients={selectedIngredients}
+					selectedForms={selectedForms}
+					ingredientFormsMap={ingredientFormsMap}
 					searchQuery={searchQuery}
 					onSearchChange={setSearchQuery}
 					onToggleIngredient={toggleIngredient}
+					onToggleForm={toggleForm}
 					onClearFilters={clearFilters}
 				/>
 			</aside>
@@ -237,6 +370,14 @@ export default function Home() {
 									variant='secondary'
 									className='text-xs'>
 									{ingredient}
+									{selectedForms[ingredient]?.length ? (
+										<>
+											{': '}
+											{selectedForms[ingredient].join(
+												', '
+											)}
+										</>
+									) : null}
 								</Badge>
 							))}
 						</div>
