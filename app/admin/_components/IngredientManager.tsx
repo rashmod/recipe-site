@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,10 +26,11 @@ export function IngredientManager({
 	onSave,
 	onDelete,
 }: IngredientManagerProps) {
-	const [proteinValues, setProteinValues] = useState<
-		Record<string, string>
-	>({});
+	const [proteinValues, setProteinValues] = useState<Record<string, string>>(
+		{}
+	);
 	const [savingId, setSavingId] = useState<string | null>(null);
+	const [searchQuery, setSearchQuery] = useState('');
 
 	useEffect(() => {
 		setProteinValues(
@@ -44,6 +45,16 @@ export function IngredientManager({
 			)
 		);
 	}, [ingredients]);
+
+	const filteredIngredients = useMemo(() => {
+		if (!searchQuery.trim()) {
+			return ingredients;
+		}
+		const query = searchQuery.toLowerCase();
+		return ingredients.filter((ingredient) =>
+			ingredient.item.toLowerCase().includes(query)
+		);
+	}, [ingredients, searchQuery]);
 
 	const parseProteinInput = (value: string): number | undefined => {
 		const trimmed = value.trim();
@@ -86,9 +97,22 @@ export function IngredientManager({
 				<CardTitle>Manage Ingredient Protein</CardTitle>
 			</CardHeader>
 			<CardContent className='space-y-6'>
-				{ingredients.length > 0 ? (
+				<div className='space-y-2'>
+					<Label htmlFor='ingredient-search' className='text-sm'>
+						Search ingredients
+					</Label>
+					<Input
+						id='ingredient-search'
+						type='text'
+						placeholder='Search by ingredient name...'
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+					/>
+				</div>
+
+				{filteredIngredients.length > 0 ? (
 					<div className='space-y-4'>
-						{ingredients.map((ingredient) => (
+						{filteredIngredients.map((ingredient) => (
 							<div
 								key={ingredient._id}
 								className='flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-end sm:gap-4'>
@@ -140,11 +164,12 @@ export function IngredientManager({
 					</div>
 				) : (
 					<p className='text-sm text-muted-foreground'>
-						No ingredients found.
+						{searchQuery.trim()
+							? 'No ingredients found matching your search.'
+							: 'No ingredients found.'}
 					</p>
 				)}
 			</CardContent>
 		</Card>
 	);
 }
-
