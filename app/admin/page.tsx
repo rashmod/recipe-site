@@ -6,9 +6,9 @@ import { useMemo, useState } from 'react';
 import type { Id } from '../../convex/_generated/dataModel';
 import { api } from '../../convex/_generated/api';
 import { Button } from '@/components/ui/button';
-import { RecipeForm } from './components/RecipeForm';
-import { RecipeList } from './components/RecipeList';
-import { UnusedItemsSection } from './components/UnusedItemsSection';
+import { RecipeForm } from './_components/RecipeForm';
+import { RecipeList } from './_components/RecipeList';
+import { UnusedItemsSection } from './_components/UnusedItemsSection';
 
 export default function AdminPage() {
 	const recipes = useQuery(api.recipes.list) ?? [];
