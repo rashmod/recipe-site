@@ -21,6 +21,7 @@ export default defineSchema({
 
 	ingredients: defineTable({
 		item: v.string(),
+		proteinPer100g: v.optional(v.number()),
 	}),
 
 	ingredientForm: defineTable({

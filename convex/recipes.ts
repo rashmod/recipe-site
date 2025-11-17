@@ -120,6 +120,7 @@ export const list = query({
 							: null;
 						return {
 							item: ingredient?.item ?? 'Unknown',
+							proteinPer100g: ingredient?.proteinPer100g ?? null,
 							forms: forms,
 							quantity: ing.quantity
 								? {
@@ -202,6 +203,7 @@ export const getRecipesByIngredient = query({
 							: null;
 						return {
 							item: ingEntity?.item ?? 'Unknown',
+							proteinPer100g: ingEntity?.proteinPer100g ?? null,
 							forms: forms,
 							quantity: ing.quantity
 								? {
