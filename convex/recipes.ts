@@ -13,6 +13,7 @@ import { requireAdmin } from './_utils';
 const ingredientInputSchema = v.array(
 	v.object({
 		item: v.string(),
+		proteinPer100g: v.optional(v.number()),
 		forms: v.optional(v.array(v.string())), // Array of form names (strings)
 		quantity: v.optional(
 			v.object({
@@ -26,7 +27,8 @@ const ingredientInputSchema = v.array(
 // Helper function to get or create an ingredient by name
 async function getOrCreateIngredient(
 	ctx: MutationCtx,
-	itemName: string
+	itemName: string,
+	proteinPer100g?: number
 ): Promise<Id<'ingredients'>> {
 	const trimmedName = itemName.trim();
 	if (!trimmedName) {
@@ -40,11 +42,24 @@ async function getOrCreateIngredient(
 		.first();
 
 	if (existing) {
+		if (
+			proteinPer100g !== undefined &&
+			proteinPer100g !== null &&
+			existing.proteinPer100g !== proteinPer100g
+		) {
+			await ctx.db.patch(existing._id, { proteinPer100g });
+		}
 		return existing._id;
 	}
 
 	// Create new ingredient
-	return await ctx.db.insert('ingredients', { item: trimmedName });
+	const ingredientData: { item: string; proteinPer100g?: number } = {
+		item: trimmedName,
+	};
+	if (proteinPer100g !== undefined && proteinPer100g !== null) {
+		ingredientData.proteinPer100g = proteinPer100g;
+	}
+	return await ctx.db.insert('ingredients', ingredientData);
 }
 
 // Helper function to get or create an ingredient form by name
@@ -148,6 +163,24 @@ export const listUniqueIngredients = query({
 	},
 });
 
+export const listIngredientsWithProtein = query({
+	args: {},
+	handler: async (ctx) => {
+		const ingredients = await ctx.db.query('ingredients').collect();
+		return ingredients
+			.map((ingredient) => ({
+				_id: ingredient._id,
+				item: ingredient.item,
+				proteinPer100g: ingredient.proteinPer100g ?? null,
+			}))
+			.sort((a, b) =>
+				a.item.localeCompare(b.item, undefined, {
+					sensitivity: 'base',
+				})
+			);
+	},
+});
+
 export const listUniqueUnits = query({
 	args: {},
 	handler: async (ctx) => {
@@ -237,7 +270,11 @@ export const add = mutation({
 		// Convert ingredient names to ingredient IDs
 		const ingredientRefs = await Promise.all(
 			ingredients.map(async (ing) => {
-				const ingredientId = await getOrCreateIngredient(ctx, ing.item);
+				const ingredientId = await getOrCreateIngredient(
+					ctx,
+					ing.item,
+					ing.proteinPer100g
+				);
 				const formIds = ing.forms
 					? await Promise.all(
 							ing.forms.map((formName) =>
@@ -269,6 +306,53 @@ export const add = mutation({
 	},
 });
 
+export const saveIngredient = mutation({
+	args: {
+		id: v.optional(v.id('ingredients')),
+		item: v.string(),
+		proteinPer100g: v.optional(v.number()),
+		adminSecret: v.optional(v.string()),
+	},
+	handler: async (ctx, args) => {
+		const { id, item, proteinPer100g, adminSecret } = args;
+		requireAdmin(ctx, adminSecret ?? null);
+
+		const trimmedItem = item.trim();
+		if (!trimmedItem) {
+			throw new Error('Ingredient name cannot be empty');
+		}
+
+		const proteinData =
+			proteinPer100g !== undefined ? { proteinPer100g } : {};
+
+		if (id) {
+			await ctx.db.patch(id, {
+				item: trimmedItem,
+				...proteinData,
+			});
+			return;
+		}
+
+		const existing = await ctx.db
+			.query('ingredients')
+			.filter((q) => q.eq(q.field('item'), trimmedItem))
+			.first();
+
+		if (existing) {
+			await ctx.db.patch(existing._id, {
+				item: trimmedItem,
+				...proteinData,
+			});
+			return;
+		}
+
+		await ctx.db.insert('ingredients', {
+			item: trimmedItem,
+			...proteinData,
+		});
+	},
+});
+
 export const update = mutation({
 	args: {
 		id: v.id('recipes'),
@@ -291,7 +375,8 @@ export const update = mutation({
 				ingredients.map(async (ing) => {
 					const ingredientId = await getOrCreateIngredient(
 						ctx,
-						ing.item
+						ing.item,
+						ing.proteinPer100g
 					);
 					const formIds = ing.forms
 						? await Promise.all(

@@ -10,6 +10,7 @@ type Recipe = {
 	ingredients:
 		| Array<{
 				item: string;
+				proteinPer100g?: number | null;
 				forms?: string[] | null;
 				quantity?: { amount?: number | null; unit?: string | null };
 		  }>
@@ -40,9 +41,7 @@ export function RecipeList({ recipes, onEdit, onDelete }: RecipeListProps) {
 	};
 
 	if (recipes.length === 0) {
-		return (
-			<p className='text-sm text-muted-foreground'>No recipes yet.</p>
-		);
+		return <p className='text-sm text-muted-foreground'>No recipes yet.</p>;
 	}
 
 	return (
@@ -55,7 +54,9 @@ export function RecipeList({ recipes, onEdit, onDelete }: RecipeListProps) {
 					<Card key={recipe._id}>
 						<CardHeader>
 							<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-								<CardTitle className='text-lg'>{recipe.title}</CardTitle>
+								<CardTitle className='text-lg'>
+									{recipe.title}
+								</CardTitle>
 								<div className='flex items-center gap-2'>
 									<Button
 										variant='outline'
@@ -79,33 +80,43 @@ export function RecipeList({ recipes, onEdit, onDelete }: RecipeListProps) {
 									<ul className='mt-1 list-disc pl-5 space-y-1'>
 										{recipeIngredients.map(
 											(ingredient, index) => {
-												const amount = ingredient.quantity?.amount;
+												const amount =
+													ingredient.quantity?.amount;
 												const unit =
-													ingredient.quantity?.unit?.trim() ?? '';
-												const formattedAmount = formatAmount(amount);
-												const quantityText = [formattedAmount, unit]
+													ingredient.quantity?.unit?.trim() ??
+													'';
+												const formattedAmount =
+													formatAmount(amount);
+												const quantityText = [
+													formattedAmount,
+													unit,
+												]
 													.filter(
 														(value) =>
-															value && value.length > 0
+															value &&
+															value.length > 0
 													)
 													.join(' ');
 
 												const formsText =
 													ingredient.forms &&
 													ingredient.forms.length > 0
-														? ` (${ingredient.forms.join(', ')})`
+														? ` (${ingredient.forms.join(
+																', '
+														  )})`
 														: '';
 
 												return (
 													<li
 														key={`${ingredient.item}-${quantityText}-${index}`}>
-														{quantityText.length > 0 && (
+														{quantityText.length >
+															0 && (
 															<span className='font-medium'>
 																{quantityText}
 															</span>
 														)}
-														{quantityText.length > 0 &&
-														ingredient.item
+														{quantityText.length >
+															0 && ingredient.item
 															? ' — '
 															: ' '}
 														<span>
@@ -113,6 +124,16 @@ export function RecipeList({ recipes, onEdit, onDelete }: RecipeListProps) {
 															{formsText && (
 																<span className='text-muted-foreground italic'>
 																	{formsText}
+																</span>
+															)}
+															{typeof ingredient.proteinPer100g ===
+																'number' && (
+																<span className='ml-1 text-muted-foreground text-xs'>
+																	(
+																	{
+																		ingredient.proteinPer100g
+																	}{' '}
+																	g / 100g)
 																</span>
 															)}
 														</span>
@@ -140,4 +161,3 @@ export function RecipeList({ recipes, onEdit, onDelete }: RecipeListProps) {
 		</div>
 	);
 }
-

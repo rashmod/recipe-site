@@ -6,12 +6,16 @@ import { useMemo, useState } from 'react';
 import type { Id } from '../../convex/_generated/dataModel';
 import { api } from '../../convex/_generated/api';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { RecipeForm } from './_components/RecipeForm';
 import { RecipeList } from './_components/RecipeList';
 import { UnusedItemsSection } from './_components/UnusedItemsSection';
+import { IngredientManager } from './_components/IngredientManager';
 
 export default function AdminPage() {
 	const recipes = useQuery(api.recipes.list) ?? [];
+	const ingredientsWithProtein =
+		useQuery(api.recipes.listIngredientsWithProtein) ?? [];
 
 	const adminSecret = useMemo(() => {
 		return typeof window !== 'undefined'
@@ -26,6 +30,7 @@ export default function AdminPage() {
 	const removeUnusedIngredients = useMutation(
 		api.recipes.removeUnusedIngredients
 	);
+	const saveIngredient = useMutation(api.recipes.saveIngredient);
 	const removeIngredientForm = useMutation(api.recipes.removeIngredientForm);
 	const removeUnusedIngredientForms = useMutation(
 		api.recipes.removeUnusedIngredientForms
@@ -43,6 +48,7 @@ export default function AdminPage() {
 	const allUnits = useQuery(api.recipes.listUniqueUnits) ?? [];
 	const allForms = useQuery(api.recipes.listUniqueIngredientForms) ?? [];
 
+	const [activeTab, setActiveTab] = useState('recipes');
 	const [editingId, setEditingId] = useState<Id<'recipes'> | null>(null);
 	const [editingRecipe, setEditingRecipe] = useState<
 		| {
@@ -109,6 +115,30 @@ export default function AdminPage() {
 				: [],
 			instructions: recipe.instructions,
 		});
+	};
+
+	const handleSaveIngredient = async (payload: {
+		id?: Id<'ingredients'>;
+		item: string;
+		proteinPer100g?: number;
+	}) => {
+		if (!adminSecret) {
+			alert('Please login first.');
+			return;
+		}
+		try {
+			await saveIngredient({
+				...payload,
+				adminSecret,
+			});
+			alert('Ingredient saved');
+		} catch (error) {
+			alert(
+				error instanceof Error
+					? error.message
+					: 'Failed to save ingredient'
+			);
+		}
 	};
 
 	const handleDelete = async (id: Id<'recipes'>) => {
@@ -267,58 +297,80 @@ export default function AdminPage() {
 				</nav>
 			</header>
 
-			<RecipeForm
-				allIngredients={allIngredients}
-				allUnits={allUnits}
-				allForms={allForms}
-				onSubmit={handleSubmit}
-				editingId={editingId}
-				initialData={editingRecipe}
-			/>
+			<Tabs value={activeTab} onValueChange={setActiveTab}>
+				<TabsList>
+					<TabsTrigger value='recipes'>Recipes</TabsTrigger>
+					<TabsTrigger value='ingredients'>Ingredients</TabsTrigger>
+					<TabsTrigger value='cleanup'>Data Cleanup</TabsTrigger>
+				</TabsList>
 
-			<section className='flex flex-col gap-4'>
-				<h2 className='text-xl lg:text-2xl font-semibold'>
-					Existing recipes
-				</h2>
-				<RecipeList
-					recipes={recipes}
-					onEdit={handleEdit}
-					onDelete={handleDelete}
-				/>
-			</section>
+				<TabsContent value='recipes' className='space-y-6'>
+					<RecipeForm
+						allIngredients={allIngredients}
+						allUnits={allUnits}
+						allForms={allForms}
+						onSubmit={handleSubmit}
+						editingId={editingId}
+						initialData={editingRecipe}
+					/>
 
-			<UnusedItemsSection
-				title='Unused Ingredients'
-				description='Ingredients that are not used in any recipe'
-				items={unusedIngredients}
-				onDeleteItem={(id) => {
-					handleRemoveIngredient(id as Id<'ingredients'>);
-				}}
-				onDeleteAll={handleRemoveUnusedIngredients}
-				getItemLabel={(item) => item.item ?? ''}
-			/>
+					<section className='flex flex-col gap-4'>
+						<h2 className='text-xl lg:text-2xl font-semibold'>
+							Existing recipes
+						</h2>
+						<RecipeList
+							recipes={recipes}
+							onEdit={handleEdit}
+							onDelete={handleDelete}
+						/>
+					</section>
+				</TabsContent>
 
-			<UnusedItemsSection
-				title='Unused Ingredient Forms'
-				description='Forms that are not used in any recipe'
-				items={unusedIngredientForms}
-				onDeleteItem={(id) => {
-					handleRemoveIngredientForm(id as Id<'ingredientForm'>);
-				}}
-				onDeleteAll={handleRemoveUnusedIngredientForms}
-				getItemLabel={(item) => item.form ?? ''}
-			/>
+				<TabsContent value='ingredients' className='space-y-6'>
+					<IngredientManager
+						ingredients={ingredientsWithProtein}
+						onSave={handleSaveIngredient}
+						onDelete={(id) => handleRemoveIngredient(id)}
+					/>
+				</TabsContent>
 
-			<UnusedItemsSection
-				title='Unused Units'
-				description='Units that are not used in any recipe'
-				items={unusedUnits}
-				onDeleteItem={(id) => {
-					handleRemoveUnit(id as Id<'units'>);
-				}}
-				onDeleteAll={handleRemoveUnusedUnits}
-				getItemLabel={(item) => item.unit ?? ''}
-			/>
+				<TabsContent value='cleanup' className='space-y-6'>
+					<UnusedItemsSection
+						title='Unused Ingredients'
+						description='Ingredients that are not used in any recipe'
+						items={unusedIngredients}
+						onDeleteItem={(id) => {
+							handleRemoveIngredient(id as Id<'ingredients'>);
+						}}
+						onDeleteAll={handleRemoveUnusedIngredients}
+						getItemLabel={(item) => item.item ?? ''}
+					/>
+
+					<UnusedItemsSection
+						title='Unused Ingredient Forms'
+						description='Forms that are not used in any recipe'
+						items={unusedIngredientForms}
+						onDeleteItem={(id) => {
+							handleRemoveIngredientForm(
+								id as Id<'ingredientForm'>
+							);
+						}}
+						onDeleteAll={handleRemoveUnusedIngredientForms}
+						getItemLabel={(item) => item.form ?? ''}
+					/>
+
+					<UnusedItemsSection
+						title='Unused Units'
+						description='Units that are not used in any recipe'
+						items={unusedUnits}
+						onDeleteItem={(id) => {
+							handleRemoveUnit(id as Id<'units'>);
+						}}
+						onDeleteAll={handleRemoveUnusedUnits}
+						getItemLabel={(item) => item.unit ?? ''}
+					/>
+				</TabsContent>
+			</Tabs>
 		</main>
 	);
 }
