@@ -3,6 +3,7 @@ export type IngredientInput = {
 	amount: string;
 	unit: string;
 	forms: string[]; // Array of form names
+	core: boolean;
 };
 
 export const createEmptyIngredient = (): IngredientInput => ({
@@ -10,6 +11,7 @@ export const createEmptyIngredient = (): IngredientInput => ({
 	amount: '',
 	unit: '',
 	forms: [],
+	core: false,
 });
 
 export const isIngredientRowEmpty = (ingredient: IngredientInput) => {
@@ -20,4 +22,3 @@ export const isIngredientRowEmpty = (ingredient: IngredientInput) => {
 		ingredient.forms.every((form) => form.trim().length === 0)
 	);
 };
-

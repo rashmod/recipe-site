@@ -58,6 +58,7 @@ export function RecipeForm({
 				forms: (ingredient.forms ?? [])
 					.map((form) => form?.trim() ?? '')
 					.filter((form) => form.length > 0),
+				core: (ingredient as { core?: boolean }).core ?? false,
 			}));
 			const lastRow = mapped[mapped.length - 1];
 			return isIngredientRowEmpty(lastRow)
@@ -91,6 +92,7 @@ export function RecipeForm({
 				forms: (ingredient.forms ?? [])
 					.map((form) => form?.trim() ?? '')
 					.filter((form) => form.length > 0),
+				core: (ingredient as { core?: boolean }).core ?? false,
 			}));
 			const lastRow = mapped[mapped.length - 1];
 			setIngredients(
@@ -181,6 +183,22 @@ export function RecipeForm({
 				throw new Error(`Ingredient ${index + 1}: name is required`);
 			}
 
+			// Validate: core ingredients must use "gram" as unit
+			if (ingredient.core && trimmedUnit.length > 0) {
+				const unitLower = trimmedUnit.toLowerCase();
+				if (
+					unitLower !== 'gram' &&
+					unitLower !== 'grams' &&
+					unitLower !== 'g'
+				) {
+					throw new Error(
+						`Ingredient ${
+							index + 1
+						}: core ingredients must use "gram" as the unit, but got "${trimmedUnit}"`
+					);
+				}
+			}
+
 			let quantity: { amount?: number; unit?: string } | undefined;
 
 			if (trimmedAmount.length > 0) {
@@ -203,6 +221,7 @@ export function RecipeForm({
 
 			acc.push({
 				item: trimmedItem,
+				...(ingredient.core ? { core: true } : {}),
 				...(trimmedForms.length > 0 ? { forms: trimmedForms } : {}),
 				...(quantity ? { quantity } : {}),
 			});
@@ -308,4 +327,3 @@ export function RecipeForm({
 		</Card>
 	);
 }
-

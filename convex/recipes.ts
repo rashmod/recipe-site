@@ -13,6 +13,7 @@ import { requireAdmin } from './_utils';
 const ingredientInputSchema = v.array(
 	v.object({
 		item: v.string(),
+		core: v.optional(v.boolean()),
 		proteinPer100g: v.optional(v.number()),
 		forms: v.optional(v.array(v.string())), // Array of form names (strings)
 		quantity: v.optional(
@@ -135,6 +136,7 @@ export const list = query({
 							: null;
 						return {
 							item: ingredient?.item ?? 'Unknown',
+							core: ing.core ?? false,
 							proteinPer100g: ingredient?.proteinPer100g ?? null,
 							forms: forms,
 							quantity: ing.quantity
@@ -236,6 +238,7 @@ export const getRecipesByIngredient = query({
 							: null;
 						return {
 							item: ingEntity?.item ?? 'Unknown',
+							core: ing.core ?? false,
 							proteinPer100g: ingEntity?.proteinPer100g ?? null,
 							forms: forms,
 							quantity: ing.quantity
@@ -270,6 +273,20 @@ export const add = mutation({
 		// Convert ingredient names to ingredient IDs
 		const ingredientRefs = await Promise.all(
 			ingredients.map(async (ing) => {
+				// Validate: core ingredients must use "gram" as unit
+				if (ing.core && ing.quantity?.unit) {
+					const unitLower = ing.quantity.unit.trim().toLowerCase();
+					if (
+						unitLower !== 'gram' &&
+						unitLower !== 'grams' &&
+						unitLower !== 'g'
+					) {
+						throw new Error(
+							`Core ingredient "${ing.item}" must use "gram" as the unit, but got "${ing.quantity.unit}"`
+						);
+					}
+				}
+
 				const ingredientId = await getOrCreateIngredient(
 					ctx,
 					ing.item,
@@ -287,6 +304,7 @@ export const add = mutation({
 					: undefined;
 				return {
 					item: ingredientId,
+					core: ing.core ?? false,
 					forms: formIds,
 					quantity: ing.quantity
 						? {
@@ -373,6 +391,22 @@ export const update = mutation({
 		if (ingredients !== undefined) {
 			const ingredientRefs = await Promise.all(
 				ingredients.map(async (ing) => {
+					// Validate: core ingredients must use "gram" as unit
+					if (ing.core && ing.quantity?.unit) {
+						const unitLower = ing.quantity.unit
+							.trim()
+							.toLowerCase();
+						if (
+							unitLower !== 'gram' &&
+							unitLower !== 'grams' &&
+							unitLower !== 'g'
+						) {
+							throw new Error(
+								`Core ingredient "${ing.item}" must use "gram" as the unit, but got "${ing.quantity.unit}"`
+							);
+						}
+					}
+
 					const ingredientId = await getOrCreateIngredient(
 						ctx,
 						ing.item,
@@ -390,6 +424,7 @@ export const update = mutation({
 						: undefined;
 					return {
 						item: ingredientId,
+						core: ing.core ?? false,
 						forms: formIds,
 						quantity: ing.quantity
 							? {

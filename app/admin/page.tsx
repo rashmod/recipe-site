@@ -55,6 +55,7 @@ export default function AdminPage() {
 				title: string;
 				ingredients: Array<{
 					item: string;
+					core?: boolean;
 					forms?: string[] | null;
 					quantity?: { amount?: number | null; unit?: string | null };
 				}>;

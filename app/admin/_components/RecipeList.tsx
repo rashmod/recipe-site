@@ -10,6 +10,7 @@ type Recipe = {
 	ingredients:
 		| Array<{
 				item: string;
+				core?: boolean;
 				proteinPer100g?: number | null;
 				forms?: string[] | null;
 				quantity?: { amount?: number | null; unit?: string | null };
@@ -121,6 +122,11 @@ export function RecipeList({ recipes, onEdit, onDelete }: RecipeListProps) {
 															: ' '}
 														<span>
 															{ingredient.item}
+															{ingredient.core && (
+																<span className='ml-1 text-xs font-semibold text-primary'>
+																	(core)
+																</span>
+															)}
 															{formsText && (
 																<span className='text-muted-foreground italic'>
 																	{formsText}

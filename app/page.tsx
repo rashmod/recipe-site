@@ -507,6 +507,11 @@ export default function Home() {
 																			{
 																				ingredient.item
 																			}
+																			{ingredient.core && (
+																				<span className='ml-1 text-xs font-semibold text-primary'>
+																					(core)
+																				</span>
+																			)}
 																			{formsText && (
 																				<span className='text-muted-foreground italic'>
 																					{

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Suggestions } from './Suggestions';
 import type { IngredientInput } from '../types';
 
@@ -61,12 +63,36 @@ export function IngredientRow({
 	};
 
 	const handleUnitChange = (value: string) => {
+		// If core is checked, validate unit is gram
+		if (ingredient.core && value.trim().length > 0) {
+			const unitLower = value.trim().toLowerCase();
+			if (
+				unitLower !== 'gram' &&
+				unitLower !== 'grams' &&
+				unitLower !== 'g'
+			) {
+				alert('Core ingredients must use "gram" as the unit.');
+				return;
+			}
+		}
 		onUpdate(index, 'unit', value);
 		setSuggestionSearchTerms((prev) => ({ ...prev, unit: value }));
 		setActiveSuggestionIndex('unit');
 	};
 
 	const handleUnitSelect = (selectedUnit: string) => {
+		// If core is checked, validate unit is gram
+		if (ingredient.core) {
+			const unitLower = selectedUnit.trim().toLowerCase();
+			if (
+				unitLower !== 'gram' &&
+				unitLower !== 'grams' &&
+				unitLower !== 'g'
+			) {
+				alert('Core ingredients must use "gram" as the unit.');
+				return;
+			}
+		}
 		onUpdate(index, 'unit', selectedUnit);
 		setSuggestionSearchTerms((prev) => ({ ...prev, unit: selectedUnit }));
 		setActiveSuggestionIndex(null);
@@ -239,47 +265,67 @@ export function IngredientRow({
 						</Button>
 					)}
 				</div>
-				<div className='w-full relative'>
-					<Input
-						className='w-full text-sm'
-						placeholder='Forms (comma-separated, e.g., diced, chopped, minced)'
-						value={formInputValue}
-						onChange={(event) =>
-							handleFormChange(event.target.value)
-						}
-						onFocus={() => {
-							const lastCommaIndex =
-								formInputValue.lastIndexOf(',');
-							const currentFormInput =
-								lastCommaIndex >= 0
-									? formInputValue
-											.substring(lastCommaIndex + 1)
-											.trim()
-									: formInputValue.trim();
-							setSuggestionSearchTerms((prev) => ({
-								...prev,
-								form: currentFormInput,
-							}));
-							setActiveSuggestionIndex('form');
-							onFocus?.();
-						}}
-						onBlur={() => {
-							handleFormBlur();
-							setTimeout(() => {
-								setActiveSuggestionIndex((current) =>
-									current === 'form' ? null : current
-								);
-							}, 200);
-							onBlur?.();
-						}}
-					/>
-					{activeSuggestionIndex === 'form' && (
-						<Suggestions
-							searchTerm={suggestionSearchTerms.form ?? ''}
-							items={availableForms}
-							onSelect={handleFormSelect}
+				<div className='flex flex-col gap-2 sm:flex-row'>
+					<div className='flex-1 relative'>
+						<Input
+							className='w-full text-sm'
+							placeholder='Forms (comma-separated, e.g., diced, chopped, minced)'
+							value={formInputValue}
+							onChange={(event) =>
+								handleFormChange(event.target.value)
+							}
+							onFocus={() => {
+								const lastCommaIndex =
+									formInputValue.lastIndexOf(',');
+								const currentFormInput =
+									lastCommaIndex >= 0
+										? formInputValue
+												.substring(lastCommaIndex + 1)
+												.trim()
+										: formInputValue.trim();
+								setSuggestionSearchTerms((prev) => ({
+									...prev,
+									form: currentFormInput,
+								}));
+								setActiveSuggestionIndex('form');
+								onFocus?.();
+							}}
+							onBlur={() => {
+								handleFormBlur();
+								setTimeout(() => {
+									setActiveSuggestionIndex((current) =>
+										current === 'form' ? null : current
+									);
+								}, 200);
+								onBlur?.();
+							}}
 						/>
-					)}
+						{activeSuggestionIndex === 'form' && (
+							<Suggestions
+								searchTerm={suggestionSearchTerms.form ?? ''}
+								items={availableForms}
+								onSelect={handleFormSelect}
+							/>
+						)}
+					</div>
+					<div className='flex items-center gap-2'>
+						<Checkbox
+							id={`core-${index}`}
+							checked={ingredient.core}
+							onCheckedChange={(checked) => {
+								onUpdate(index, 'core', checked === true);
+								// Auto-set unit to "gram" when marking as core
+								if (checked === true) {
+									onUpdate(index, 'unit', 'gram');
+								}
+							}}
+						/>
+						<Label
+							htmlFor={`core-${index}`}
+							className='text-sm cursor-pointer'>
+							Core
+						</Label>
+					</div>
 				</div>
 			</div>
 		</Card>

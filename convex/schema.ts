@@ -7,6 +7,7 @@ export default defineSchema({
 		ingredients: v.array(
 			v.object({
 				item: v.id('ingredients'),
+				core: v.optional(v.boolean()),
 				forms: v.optional(v.array(v.id('ingredientForm'))),
 				quantity: v.optional(
 					v.object({
