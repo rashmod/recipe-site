@@ -283,6 +283,39 @@ export default function Home() {
 
 	const uniqueIngredients = uniqueIngredientsQuery ?? [];
 
+	const calculateTotalProtein = (
+		ingredients: Array<{
+			core?: boolean;
+			proteinPer100g?: number | null;
+			quantity?: { amount?: number | null; unit?: string | null };
+		}>
+	): number | null => {
+		let total = 0;
+		let hasCoreIngredients = false;
+
+		for (const ingredient of ingredients) {
+			if (!ingredient.core) continue;
+
+			hasCoreIngredients = true;
+			const proteinPer100g = ingredient.proteinPer100g;
+			const amount = ingredient.quantity?.amount;
+			const unit = ingredient.quantity?.unit?.trim().toLowerCase() ?? '';
+
+			// Only calculate if we have protein data, amount, and unit is gram
+			if (
+				typeof proteinPer100g === 'number' &&
+				typeof amount === 'number' &&
+				Number.isFinite(amount) &&
+				Number.isFinite(proteinPer100g) &&
+				(unit === 'gram' || unit === 'grams' || unit === 'g')
+			) {
+				total += (amount / 100) * proteinPer100g;
+			}
+		}
+
+		return hasCoreIngredients ? total : null;
+	};
+
 	return (
 		<div className='flex min-h-screen bg-background'>
 			{/* Mobile Sheet Sidebar */}
@@ -403,6 +436,7 @@ export default function Home() {
 								)
 									? recipe.ingredients
 									: [];
+								const totalProtein = calculateTotalProtein(ingredientItems);
 								const instructionSteps = recipe.instructions
 									.split('\n')
 									.map((line) => line.trim())
@@ -410,9 +444,19 @@ export default function Home() {
 								return (
 									<Card key={recipe._id}>
 										<CardHeader>
-											<CardTitle className='text-2xl'>
-												{recipe.title}
-											</CardTitle>
+											<div>
+												<CardTitle className='text-2xl'>
+													{recipe.title}
+												</CardTitle>
+												{totalProtein !== null && (
+													<p className='text-sm text-muted-foreground mt-1'>
+														Total protein: {totalProtein.toFixed(1)}g
+														<span className='text-xs ml-1'>
+															(from core ingredients)
+														</span>
+													</p>
+												)}
+											</div>
 										</CardHeader>
 										<CardContent className='space-y-4'>
 											{ingredientItems.length > 0 && (

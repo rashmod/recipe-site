@@ -41,6 +41,39 @@ export function RecipeList({ recipes, onEdit, onDelete }: RecipeListProps) {
 			.replace(/\.?0+$/, '');
 	};
 
+	const calculateTotalProtein = (
+		ingredients: Array<{
+			core?: boolean;
+			proteinPer100g?: number | null;
+			quantity?: { amount?: number | null; unit?: string | null };
+		}>
+	): number | null => {
+		let total = 0;
+		let hasCoreIngredients = false;
+
+		for (const ingredient of ingredients) {
+			if (!ingredient.core) continue;
+
+			hasCoreIngredients = true;
+			const proteinPer100g = ingredient.proteinPer100g;
+			const amount = ingredient.quantity?.amount;
+			const unit = ingredient.quantity?.unit?.trim().toLowerCase() ?? '';
+
+			// Only calculate if we have protein data, amount, and unit is gram
+			if (
+				typeof proteinPer100g === 'number' &&
+				typeof amount === 'number' &&
+				Number.isFinite(amount) &&
+				Number.isFinite(proteinPer100g) &&
+				(unit === 'gram' || unit === 'grams' || unit === 'g')
+			) {
+				total += (amount / 100) * proteinPer100g;
+			}
+		}
+
+		return hasCoreIngredients ? total : null;
+	};
+
 	if (recipes.length === 0) {
 		return <p className='text-sm text-muted-foreground'>No recipes yet.</p>;
 	}
@@ -51,13 +84,24 @@ export function RecipeList({ recipes, onEdit, onDelete }: RecipeListProps) {
 				const recipeIngredients = Array.isArray(recipe.ingredients)
 					? recipe.ingredients
 					: [];
+				const totalProtein = calculateTotalProtein(recipeIngredients);
 				return (
 					<Card key={recipe._id}>
 						<CardHeader>
 							<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-								<CardTitle className='text-lg'>
-									{recipe.title}
-								</CardTitle>
+								<div>
+									<CardTitle className='text-lg'>
+										{recipe.title}
+									</CardTitle>
+									{totalProtein !== null && (
+										<p className='text-sm text-muted-foreground mt-1'>
+											Total protein: {totalProtein.toFixed(1)}g
+											<span className='text-xs ml-1'>
+												(from core ingredients)
+											</span>
+										</p>
+									)}
+								</div>
 								<div className='flex items-center gap-2'>
 									<Button
 										variant='outline'
