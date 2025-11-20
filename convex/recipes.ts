@@ -573,6 +573,71 @@ export const listUnusedIngredientForms = query({
 	},
 });
 
+// Recipe Pairings
+
+export const listPairings = query({
+	args: {},
+	handler: async (ctx) => {
+		const pairings = await ctx.db.query('recipePairings').collect();
+
+		// Populate recipe titles and generate names
+		const pairingsWithNames = await Promise.all(
+			pairings.map(async (pairing) => {
+				const recipes = await Promise.all(
+					pairing.recipeIds.map((id) => ctx.db.get(id))
+				);
+				const recipeTitles = recipes
+					.filter((r) => r !== null)
+					.map((r) => r!.title);
+
+				const name =
+					recipeTitles.length === 1
+						? recipeTitles[0]
+						: recipeTitles.join(' + ');
+
+				return {
+					...pairing,
+					name,
+				};
+			})
+		);
+
+		return pairingsWithNames.sort((a, b) => a.name.localeCompare(b.name));
+	},
+});
+
+export const savePairing = mutation({
+	args: {
+		recipeIds: v.array(v.id('recipes')),
+	},
+	handler: async (ctx, args) => {
+		if (args.recipeIds.length === 0) {
+			throw new Error('Pairing must contain at least one recipe');
+		}
+
+		// Verify all recipe IDs exist
+		for (const recipeId of args.recipeIds) {
+			const recipe = await ctx.db.get(recipeId);
+			if (!recipe) {
+				throw new Error(`Recipe with ID ${recipeId} does not exist`);
+			}
+		}
+
+		await ctx.db.insert('recipePairings', {
+			recipeIds: args.recipeIds,
+		});
+	},
+});
+
+export const deletePairing = mutation({
+	args: {
+		id: v.id('recipePairings'),
+	},
+	handler: async (ctx, args) => {
+		await ctx.db.delete(args.id);
+	},
+});
+
 // Mutation to delete a single ingredient form
 export const removeIngredientForm = mutation({
 	args: {
@@ -829,6 +894,17 @@ export const deleteAllUnits = internalMutation({
 	},
 });
 
+export const deleteAllRecipePairings = internalMutation({
+	args: {},
+	handler: async (ctx) => {
+		const pairings = await ctx.db.query('recipePairings').collect();
+		for (const pairing of pairings) {
+			await ctx.db.delete(pairing._id);
+		}
+		return { deletedCount: pairings.length };
+	},
+});
+
 export const findUnitByName = internalQuery({
 	args: { unit: v.string() },
 	handler: async (ctx, args) => {
@@ -844,5 +920,16 @@ export const createUnit = internalMutation({
 	args: { unit: v.string() },
 	handler: async (ctx, args) => {
 		return await ctx.db.insert('units', { unit: args.unit.trim() });
+	},
+});
+
+export const createPairing = internalMutation({
+	args: {
+		recipeIds: v.array(v.id('recipes')),
+	},
+	handler: async (ctx, args) => {
+		return await ctx.db.insert('recipePairings', {
+			recipeIds: args.recipeIds,
+		});
 	},
 });

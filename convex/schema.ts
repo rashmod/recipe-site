@@ -32,4 +32,8 @@ export default defineSchema({
 	units: defineTable({
 		unit: v.string(),
 	}),
+
+	recipePairings: defineTable({
+		recipeIds: v.array(v.id('recipes')),
+	}),
 });

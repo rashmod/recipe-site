@@ -108,9 +108,10 @@ async function main() {
 			ingredients: number;
 			forms: number;
 			units: number;
+			pairings: number;
 		};
 		console.log(
-			`   ✅ Cleared ${clearResult.recipes} recipes, ${clearResult.ingredients} ingredients, ${clearResult.forms} forms, ${clearResult.units} units\n`
+			`   ✅ Cleared ${clearResult.recipes} recipes, ${clearResult.ingredients} ingredients, ${clearResult.forms} forms, ${clearResult.units} units, ${clearResult.pairings} pairings\n`
 		);
 
 		// Step 1: Import units
@@ -176,11 +177,41 @@ async function main() {
 
 		console.log(`   ✅ Imported ${results.length} recipes\n`);
 
+		// Create recipe map (title -> ID) for pairings
+		const recipeMap: Record<string, string> = {};
+		for (const recipe of results) {
+			recipeMap[recipe.title] = recipe.id;
+		}
+
+		// Step 4: Import pairings (optional)
+		const pairingsPath = path.join(__dirname, '..', 'pairings.jsonl');
+		let pairingCount = 0;
+		if (fs.existsSync(pairingsPath)) {
+			console.log('🔗 Step 4: Importing recipe pairings...');
+			const pairings = readJSONL(pairingsPath);
+			console.log(`   Found ${pairings.length} pairings`);
+
+			const pairingResults = (await (
+				client as unknown as {
+					action: (path: string, args: unknown) => Promise<unknown>;
+				}
+			).action('migrate:importPairings', {
+				pairings,
+				recipeMap,
+			})) as Array<{ recipeTitles: string[]; id: string }>;
+
+			pairingCount = pairingResults.length;
+			console.log(`   ✅ Imported ${pairingCount} pairings\n`);
+		}
+
 		// Summary
 		console.log('✨ Migration completed successfully!');
 		console.log(`   - Units: ${Object.keys(unitMap).length}`);
 		console.log(`   - Ingredients: ${Object.keys(ingredientMap).length}`);
 		console.log(`   - Recipes: ${results.length}`);
+		if (pairingCount > 0) {
+			console.log(`   - Pairings: ${pairingCount}`);
+		}
 	} catch (error) {
 		console.error('❌ Migration failed:', error);
 		process.exit(1);

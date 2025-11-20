@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { api } from '../convex/_generated/api';
-import { useQuery } from 'convex/react';
-import { useMemo, useState } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import type { Id } from '../convex/_generated/dataModel';
+import { useMemo, useState, useCallback } from 'react';
 import { Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -185,6 +186,13 @@ export default function Home() {
 	const [customQuantities, setCustomQuantities] = useState<
 		Record<string, Record<number, number>>
 	>({});
+	const [selectedRecipes, setSelectedRecipes] = useState<Set<string>>(
+		new Set()
+	);
+
+	const savedPairingsQuery = useQuery(api.recipes.listPairings);
+	const savePairingMutation = useMutation(api.recipes.savePairing);
+	const deletePairingMutation = useMutation(api.recipes.deletePairing);
 
 	const ingredientFormsMap = useMemo(() => {
 		const map: Record<string, string[]> = {};
@@ -213,37 +221,42 @@ export default function Home() {
 		return map;
 	}, [allRecipesQuery]);
 
-	// Filter recipes based on selected ingredients
+	// Filter recipes based on selected ingredients and exclude paired recipes
 	const recipes = useMemo(() => {
 		const allRecipes = allRecipesQuery ?? [];
-		if (selectedIngredients.length === 0) {
-			return allRecipes;
-		}
-		return allRecipes.filter((recipe) => {
-			const recipeIngredients = Array.isArray(recipe.ingredients)
-				? recipe.ingredients
-				: [];
-			const recipeIngredientNames = recipeIngredients.map(
-				(ing) => ing.item
-			);
-			return selectedIngredients.every((selected) => {
-				if (!recipeIngredientNames.includes(selected)) {
-					return false;
-				}
-				const requiredForms = selectedForms[selected] ?? [];
-				if (requiredForms.length === 0) {
-					return true;
-				}
-				const recipeIngredient = recipeIngredients.find(
-					(ing) => ing.item === selected
+		let filtered = allRecipes;
+
+		// Filter by ingredients if any are selected
+		if (selectedIngredients.length > 0) {
+			filtered = filtered.filter((recipe) => {
+				const recipeIngredients = Array.isArray(recipe.ingredients)
+					? recipe.ingredients
+					: [];
+				const recipeIngredientNames = recipeIngredients.map(
+					(ing) => ing.item
 				);
-				const recipeForms = recipeIngredient?.forms ?? [];
-				return requiredForms.every((form) =>
-					recipeForms.includes(form)
-				);
+				return selectedIngredients.every((selected) => {
+					if (!recipeIngredientNames.includes(selected)) {
+						return false;
+					}
+					const requiredForms = selectedForms[selected] ?? [];
+					if (requiredForms.length === 0) {
+						return true;
+					}
+					const recipeIngredient = recipeIngredients.find(
+						(ing) => ing.item === selected
+					);
+					const recipeForms = recipeIngredient?.forms ?? [];
+					return requiredForms.every((form) =>
+						recipeForms.includes(form)
+					);
+				});
 			});
-		});
-	}, [allRecipesQuery, selectedIngredients, selectedForms]);
+		}
+
+		// Exclude paired recipes from main list
+		return filtered.filter((recipe) => !selectedRecipes.has(recipe._id));
+	}, [allRecipesQuery, selectedIngredients, selectedForms, selectedRecipes]);
 
 	const toggleIngredient = (ingredient: string) => {
 		setSelectedIngredients((prev) => {
@@ -285,41 +298,97 @@ export default function Home() {
 		setSearchQuery('');
 	};
 
-	const uniqueIngredients = uniqueIngredientsQuery ?? [];
-
-	const calculateTotalProtein = (
-		ingredients: Array<{
-			core?: boolean;
-			proteinPer100g?: number | null;
-			quantity?: { amount?: number | null; unit?: string | null };
-		}>,
-		scaleFactor: number = 1
-	): number | null => {
-		let total = 0;
-		let hasCoreIngredients = false;
-
-		for (const ingredient of ingredients) {
-			if (!ingredient.core) continue;
-
-			hasCoreIngredients = true;
-			const proteinPer100g = ingredient.proteinPer100g;
-			const amount = ingredient.quantity?.amount;
-			const unit = ingredient.quantity?.unit?.trim().toLowerCase() ?? '';
-
-			// Only calculate if we have protein data, amount, and unit is gram
-			if (
-				typeof proteinPer100g === 'number' &&
-				typeof amount === 'number' &&
-				Number.isFinite(amount) &&
-				Number.isFinite(proteinPer100g) &&
-				(unit === 'gram' || unit === 'grams' || unit === 'g')
-			) {
-				total += ((amount * scaleFactor) / 100) * proteinPer100g;
+	const toggleRecipeSelection = (recipeId: string) => {
+		setSelectedRecipes((prev) => {
+			const next = new Set(prev);
+			if (next.has(recipeId)) {
+				next.delete(recipeId);
+			} else {
+				next.add(recipeId);
 			}
+			return next;
+		});
+	};
+
+	const clearSelectedRecipes = () => {
+		setSelectedRecipes(new Set());
+	};
+
+	const handleSavePairing = async () => {
+		if (selectedRecipes.size === 0) {
+			return;
 		}
 
-		return hasCoreIngredients ? total : null;
+		try {
+			await savePairingMutation({
+				recipeIds: Array.from(selectedRecipes) as Id<'recipes'>[],
+			});
+		} catch (error) {
+			console.error('Failed to save pairing:', error);
+			alert('Failed to save pairing. Please try again.');
+		}
 	};
+
+	const handleLoadPairing = (recipeIds: string[]) => {
+		setSelectedRecipes(new Set(recipeIds));
+	};
+
+	const handleDeletePairing = async (id: string) => {
+		if (
+			!confirm(
+				'Are you sure you want to delete this pairing? This action cannot be undone.'
+			)
+		) {
+			return;
+		}
+
+		try {
+			await deletePairingMutation({ id: id as Id<'recipePairings'> });
+		} catch (error) {
+			console.error('Failed to delete pairing:', error);
+			alert('Failed to delete pairing. Please try again.');
+		}
+	};
+
+	const uniqueIngredients = uniqueIngredientsQuery ?? [];
+
+	const calculateTotalProtein = useCallback(
+		(
+			ingredients: Array<{
+				core?: boolean;
+				proteinPer100g?: number | null;
+				quantity?: { amount?: number | null; unit?: string | null };
+			}>,
+			scaleFactor: number = 1
+		): number | null => {
+			let total = 0;
+			let hasCoreIngredients = false;
+
+			for (const ingredient of ingredients) {
+				if (!ingredient.core) continue;
+
+				hasCoreIngredients = true;
+				const proteinPer100g = ingredient.proteinPer100g;
+				const amount = ingredient.quantity?.amount;
+				const unit =
+					ingredient.quantity?.unit?.trim().toLowerCase() ?? '';
+
+				// Only calculate if we have protein data, amount, and unit is gram
+				if (
+					typeof proteinPer100g === 'number' &&
+					typeof amount === 'number' &&
+					Number.isFinite(amount) &&
+					Number.isFinite(proteinPer100g) &&
+					(unit === 'gram' || unit === 'grams' || unit === 'g')
+				) {
+					total += ((amount * scaleFactor) / 100) * proteinPer100g;
+				}
+			}
+
+			return hasCoreIngredients ? total : null;
+		},
+		[]
+	);
 
 	const formatAmount = (
 		amount: number | null | undefined,
@@ -339,6 +408,16 @@ export default function Home() {
 			.toString()
 			.replace(/\.?0+$/, '');
 	};
+
+	// Get selected recipes for pairing
+	const pairedRecipes = useMemo(() => {
+		if (selectedRecipes.size === 0) {
+			return [];
+		}
+
+		const allRecipes = allRecipesQuery ?? [];
+		return allRecipes.filter((recipe) => selectedRecipes.has(recipe._id));
+	}, [selectedRecipes, allRecipesQuery]);
 
 	return (
 		<div className='flex min-h-screen bg-background'>
@@ -442,6 +521,479 @@ export default function Home() {
 				</header>
 
 				<div className='flex-1 overflow-y-auto p-4 lg:p-6'>
+					{/* Saved Pairings Section */}
+					{savedPairingsQuery && savedPairingsQuery.length > 0 && (
+						<div className='mb-6'>
+							<h2 className='text-xl font-semibold mb-4'>
+								Saved Pairings
+							</h2>
+							<div className='flex flex-col gap-2'>
+								{savedPairingsQuery.map((pairing) => (
+									<Card key={pairing._id}>
+										<CardContent className='p-4'>
+											<div className='flex items-center justify-between'>
+												<div className='flex-1'>
+													<h3 className='font-medium'>
+														{pairing.name}
+													</h3>
+													<p className='text-sm text-muted-foreground'>
+														{
+															pairing.recipeIds
+																.length
+														}{' '}
+														{pairing.recipeIds
+															.length === 1
+															? 'recipe'
+															: 'recipes'}
+													</p>
+												</div>
+												<div className='flex items-center gap-2'>
+													<Button
+														variant='outline'
+														size='sm'
+														onClick={() =>
+															handleLoadPairing(
+																pairing.recipeIds.map(
+																	(id) =>
+																		id as string
+																)
+															)
+														}>
+														Load
+													</Button>
+													<Button
+														variant='ghost'
+														size='sm'
+														onClick={() =>
+															handleDeletePairing(
+																pairing._id as string
+															)
+														}>
+														Delete
+													</Button>
+												</div>
+											</div>
+										</CardContent>
+									</Card>
+								))}
+							</div>
+						</div>
+					)}
+
+					{/* Paired Recipes Section */}
+					{pairedRecipes.length > 0 && (
+						<div className='mb-6'>
+							<div className='flex items-center justify-between mb-4'>
+								<h2 className='text-xl font-semibold'>
+									Paired Recipes
+								</h2>
+								<div className='flex items-center gap-2'>
+									<Button
+										variant='outline'
+										size='sm'
+										onClick={handleSavePairing}
+										disabled={selectedRecipes.size === 0}>
+										Save Pairing
+									</Button>
+									<Button
+										variant='ghost'
+										size='sm'
+										onClick={clearSelectedRecipes}>
+										Clear Pairing
+									</Button>
+								</div>
+							</div>
+							<div className='flex flex-col gap-6'>
+								{pairedRecipes.map((recipe) => {
+									const ingredientItems = Array.isArray(
+										recipe.ingredients
+									)
+										? recipe.ingredients
+										: [];
+
+									const recipeCustomQuantities =
+										customQuantities[recipe._id] ?? {};
+									const hasCustomQuantity =
+										Object.keys(recipeCustomQuantities)
+											.length > 0;
+
+									let customScaleFactor: number | null = null;
+									if (hasCustomQuantity) {
+										for (
+											let i = 0;
+											i < ingredientItems.length;
+											i++
+										) {
+											const ingredient =
+												ingredientItems[i];
+											if (
+												ingredient.core &&
+												recipeCustomQuantities[i] !==
+													undefined
+											) {
+												const originalAmount =
+													ingredient.quantity?.amount;
+												const customAmount =
+													recipeCustomQuantities[i];
+												if (
+													typeof originalAmount ===
+														'number' &&
+													originalAmount > 0 &&
+													customAmount > 0
+												) {
+													customScaleFactor =
+														customAmount /
+														originalAmount;
+													break;
+												}
+											}
+										}
+									}
+
+									const scaleFactor =
+										customScaleFactor ?? servings;
+									const totalProtein = calculateTotalProtein(
+										ingredientItems,
+										scaleFactor
+									);
+									const instructionSteps = recipe.instructions
+										.split('\n')
+										.map((line) => line.trim())
+										.filter(Boolean);
+
+									return (
+										<Card
+											key={recipe._id}
+											className='border-primary border-2'>
+											<CardHeader>
+												<div>
+													<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+														<div className='flex items-center gap-3'>
+															<Checkbox
+																checked={true}
+																onCheckedChange={() =>
+																	toggleRecipeSelection(
+																		recipe._id
+																	)
+																}
+																className='shrink-0'
+															/>
+															<CardTitle className='text-2xl'>
+																{recipe.title}
+															</CardTitle>
+														</div>
+														<div className='flex items-center gap-2'>
+															<span className='text-sm text-muted-foreground whitespace-nowrap'>
+																Servings:
+															</span>
+															<div className='flex gap-1'>
+																{[
+																	1, 2, 3, 4,
+																	5, 6,
+																].map((num) => (
+																	<Button
+																		key={
+																			num
+																		}
+																		variant={
+																			servings ===
+																			num
+																				? 'default'
+																				: 'outline'
+																		}
+																		size='sm'
+																		onClick={() => {
+																			setServings(
+																				num
+																			);
+																			setCustomQuantities(
+																				{}
+																			);
+																		}}
+																		className={`min-w-10 ${
+																			hasCustomQuantity
+																				? 'opacity-50 cursor-pointer'
+																				: ''
+																		}`}
+																		title={
+																			hasCustomQuantity
+																				? 'Click to clear custom quantity and use serving size'
+																				: undefined
+																		}>
+																		{num}
+																	</Button>
+																))}
+															</div>
+														</div>
+													</div>
+													{totalProtein !== null && (
+														<p className='text-sm text-muted-foreground mt-1'>
+															Total protein:{' '}
+															{totalProtein.toFixed(
+																1
+															)}
+															g
+															<span className='text-xs ml-1'>
+																(from core
+																ingredients)
+															</span>
+														</p>
+													)}
+												</div>
+											</CardHeader>
+											<CardContent className='space-y-4'>
+												{ingredientItems.length > 0 && (
+													<section>
+														<h3 className='text-lg font-medium mb-2'>
+															Ingredients
+														</h3>
+														<ul className='list-disc pl-5 space-y-1 text-sm'>
+															{ingredientItems.map(
+																(
+																	ingredient,
+																	index
+																) => {
+																	const amount =
+																		ingredient
+																			.quantity
+																			?.amount ??
+																		undefined;
+																	const unit =
+																		ingredient.quantity?.unit?.trim() ??
+																		'';
+																	const formattedAmount =
+																		formatAmount(
+																			amount,
+																			scaleFactor
+																		);
+																	const quantityText =
+																		[
+																			formattedAmount,
+																			unit,
+																		]
+																			.filter(
+																				(
+																					value
+																				) =>
+																					value &&
+																					value.length >
+																						0
+																			)
+																			.join(
+																				' '
+																			);
+
+																	const formsText =
+																		ingredient.forms &&
+																		ingredient
+																			.forms
+																			.length >
+																			0
+																			? ` (${ingredient.forms.join(
+																					', '
+																			  )})`
+																			: '';
+
+																	const customAmount =
+																		recipeCustomQuantities[
+																			index
+																		];
+																	const showCustomInput =
+																		ingredient.core &&
+																		typeof amount ===
+																			'number';
+
+																	return (
+																		<li
+																			key={`${recipe._id}-${index}-${ingredient.item}`}
+																			className='space-y-1'>
+																			<div className='flex items-start gap-2'>
+																				<span className='flex-1'>
+																					{quantityText.length >
+																						0 && (
+																						<span className='font-medium'>
+																							{
+																								quantityText
+																							}
+																						</span>
+																					)}
+																					{quantityText.length >
+																						0 &&
+																					ingredient.item
+																						? ' — '
+																						: ' '}
+																					<span>
+																						{
+																							ingredient.item
+																						}
+																						{ingredient.core && (
+																							<span className='ml-1 text-xs font-semibold text-primary'>
+																								(core)
+																							</span>
+																						)}
+																						{formsText && (
+																							<span className='text-muted-foreground italic'>
+																								{
+																									formsText
+																								}
+																							</span>
+																						)}
+																					</span>
+																				</span>
+																			</div>
+																			{showCustomInput && (
+																				<div className='flex items-center gap-2 pl-5'>
+																					<label
+																						htmlFor={`custom-${recipe._id}-${index}`}
+																						className='text-xs text-muted-foreground whitespace-nowrap'>
+																						Custom{' '}
+																						{
+																							unit
+																						}
+
+																						:
+																					</label>
+																					<Input
+																						id={`custom-${recipe._id}-${index}`}
+																						type='number'
+																						min='0'
+																						step='0.1'
+																						value={
+																							customAmount ??
+																							''
+																						}
+																						onChange={(
+																							e
+																						) => {
+																							const value =
+																								parseFloat(
+																									e
+																										.target
+																										.value
+																								);
+																							if (
+																								!Number.isNaN(
+																									value
+																								) &&
+																								value >
+																									0
+																							) {
+																								setCustomQuantities(
+																									(
+																										prev
+																									) => ({
+																										...prev,
+																										[recipe._id]:
+																											{
+																												[index]:
+																													value,
+																											},
+																									})
+																								);
+																								setServings(
+																									1
+																								);
+																							} else if (
+																								e
+																									.target
+																									.value ===
+																								''
+																							) {
+																								setCustomQuantities(
+																									(
+																										prev
+																									) => {
+																										const next =
+																											{
+																												...prev,
+																											};
+																										if (
+																											next[
+																												recipe
+																													._id
+																											]
+																										) {
+																											const recipeQuantities =
+																												{
+																													...next[
+																														recipe
+																															._id
+																													],
+																												};
+																											delete recipeQuantities[
+																												index
+																											];
+																											if (
+																												Object.keys(
+																													recipeQuantities
+																												)
+																													.length ===
+																												0
+																											) {
+																												delete next[
+																													recipe
+																														._id
+																												];
+																											} else {
+																												next[
+																													recipe._id
+																												] =
+																													recipeQuantities;
+																											}
+																										}
+																										return next;
+																									}
+																								);
+																							}
+																						}}
+																						placeholder={String(
+																							amount
+																						)}
+																						className='w-24 text-xs'
+																						inputMode='decimal'
+																					/>
+																				</div>
+																			)}
+																		</li>
+																	);
+																}
+															)}
+														</ul>
+													</section>
+												)}
+												{instructionSteps.length >
+													0 && (
+													<>
+														<Separator />
+														<section>
+															<h3 className='text-lg font-medium mb-2'>
+																Instructions
+															</h3>
+															<ol className='list-decimal pl-5 space-y-1 text-sm'>
+																{instructionSteps.map(
+																	(step) => (
+																		<li
+																			key={
+																				step
+																			}>
+																			{
+																				step
+																			}
+																		</li>
+																	)
+																)}
+															</ol>
+														</section>
+													</>
+												)}
+											</CardContent>
+										</Card>
+									);
+								})}
+							</div>
+						</div>
+					)}
+
 					{recipes.length > 0 && (
 						<div className='mb-4 flex items-center gap-2'>
 							<span className='text-sm text-muted-foreground'>
@@ -552,14 +1104,34 @@ export default function Home() {
 									.split('\n')
 									.map((line) => line.trim())
 									.filter(Boolean);
+								const isSelected = selectedRecipes.has(
+									recipe._id
+								);
 								return (
-									<Card key={recipe._id}>
+									<Card
+										key={recipe._id}
+										className={
+											isSelected
+												? 'border-primary border-2'
+												: ''
+										}>
 										<CardHeader>
 											<div>
 												<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-													<CardTitle className='text-2xl'>
-														{recipe.title}
-													</CardTitle>
+													<div className='flex items-center gap-3'>
+														<Checkbox
+															checked={isSelected}
+															onCheckedChange={() =>
+																toggleRecipeSelection(
+																	recipe._id
+																)
+															}
+															className='shrink-0'
+														/>
+														<CardTitle className='text-2xl'>
+															{recipe.title}
+														</CardTitle>
+													</div>
 													<div className='flex items-center gap-2'>
 														<span className='text-sm text-muted-foreground whitespace-nowrap'>
 															Servings:

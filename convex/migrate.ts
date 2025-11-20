@@ -13,11 +13,20 @@ export const clearAllData = action({
 		ingredients: number;
 		forms: number;
 		units: number;
+		pairings: number;
 	}> => {
 		console.log('🗑️  Clearing all existing data...');
 
 		// Delete in order: recipes first (they reference ingredients and forms),
-		// then ingredients, then forms
+		// then ingredients, then forms, then pairings (they reference recipes)
+		const pairingsResult = (await ctx.runMutation(
+			internal.recipes.deleteAllRecipePairings,
+			{}
+		)) as { deletedCount: number };
+		console.log(
+			`   Deleted ${pairingsResult.deletedCount} recipe pairings`
+		);
+
 		const recipesResult = (await ctx.runMutation(
 			internal.recipes.deleteAllRecipes,
 			{}
@@ -47,6 +56,7 @@ export const clearAllData = action({
 			ingredients: ingredientsResult.deletedCount,
 			forms: formsResult.deletedCount,
 			units: unitsResult.deletedCount,
+			pairings: pairingsResult.deletedCount,
 		};
 	},
 });
@@ -234,6 +244,60 @@ export const importRecipes = action({
 			);
 
 			results.push({ title: recipe.title, id: recipeId });
+		}
+
+		return results;
+	},
+});
+
+// Public action to import recipe pairings (for migration script)
+export const importPairings = action({
+	args: {
+		pairings: v.array(
+			v.object({
+				recipeTitles: v.array(v.string()), // Array of recipe titles
+			})
+		),
+		recipeMap: v.any(), // Map of recipe title -> ID
+	},
+	handler: async (ctx, args) => {
+		const recipeMap = args.recipeMap as Record<string, string>;
+		const results: Array<{ recipeTitles: string[]; id: string }> = [];
+
+		for (const pairing of args.pairings) {
+			// Convert recipe titles to IDs
+			const recipeIds: Id<'recipes'>[] = [];
+
+			for (const title of pairing.recipeTitles) {
+				const recipeId = recipeMap[title];
+				if (!recipeId) {
+					console.warn(`Recipe not found: ${title}`);
+					continue;
+				}
+				recipeIds.push(recipeId as Id<'recipes'>);
+			}
+
+			if (recipeIds.length === 0) {
+				console.warn(
+					`Pairing with recipes [${pairing.recipeTitles.join(
+						', '
+					)}] has no valid recipes, skipping`
+				);
+				continue;
+			}
+
+			// Import pairing using the internal mutation
+			const pairingId = await ctx.runMutation(
+				internal.recipes.createPairing,
+				{
+					recipeIds: recipeIds,
+				}
+			);
+
+			results.push({
+				recipeTitles: pairing.recipeTitles,
+				id: pairingId,
+			});
 		}
 
 		return results;
