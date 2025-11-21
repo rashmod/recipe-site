@@ -2,35 +2,35 @@
 {"item":"yellow onion"}
 {"item":"carrots"}
 {"item":"garlic cloves"}
-{"item":"brown lentils"}
+{"item":"brown lentils","proteinPer100g":25.8}
 {"item":"vegetable broth"}
 {"item":"smoked paprika"}
 {"item":"bay leaf"}
 {"item":"salt and pepper"}
-{"item":"bone-in chicken thighs"}
+{"item":"bone-in chicken thighs","proteinPer100g":26.0}
 {"item":"baby potatoes"}
-{"item":"green beans"}
+{"item":"green beans","proteinPer100g":1.8}
 {"item":"lemon"}
 {"item":"dried oregano"}
 {"item":"dried thyme"}
-{"item":"linguine"}
-{"item":"fresh spinach"}
+{"item":"linguine","proteinPer100g":13.0}
+{"item":"fresh spinach","proteinPer100g":2.9}
 {"item":"basil leaves"}
-{"item":"pine nuts"}
-{"item":"Parmesan"}
+{"item":"pine nuts","proteinPer100g":13.7}
+{"item":"Parmesan","proteinPer100g":35.8}
 {"item":"heavy cream"}
 {"item":"coconut milk"}
-{"item":"chia seeds"}
+{"item":"chia seeds","proteinPer100g":16.5}
 {"item":"maple syrup"}
 {"item":"ripe mango"}
 {"item":"coconut flakes"}
 {"item":"fresh mint"}
-{"item":"cauliflower head"}
+{"item":"cauliflower head","proteinPer100g":1.9}
 {"item":"chili powder"}
 {"item":"ground cumin"}
 {"item":"kosher salt"}
 {"item":"corn tortillas"}
-{"item":"cabbage"}
+{"item":"cabbage","proteinPer100g":1.3}
 {"item":"red onions"}
 {"item":"cilantro leaves"}
 {"item":"lime wedges"}

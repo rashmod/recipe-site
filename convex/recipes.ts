@@ -842,9 +842,18 @@ export const findIngredientByName = internalQuery({
 });
 
 export const createIngredient = internalMutation({
-	args: { item: v.string() },
+	args: {
+		item: v.string(),
+		proteinPer100g: v.optional(v.number()),
+	},
 	handler: async (ctx, args) => {
-		return await ctx.db.insert('ingredients', { item: args.item.trim() });
+		const ingredientData: { item: string; proteinPer100g?: number } = {
+			item: args.item.trim(),
+		};
+		if (args.proteinPer100g !== undefined && args.proteinPer100g !== null) {
+			ingredientData.proteinPer100g = args.proteinPer100g;
+		}
+		return await ctx.db.insert('ingredients', ingredientData);
 	},
 });
 
@@ -874,6 +883,7 @@ export const createRecipe = internalMutation({
 		ingredients: v.array(
 			v.object({
 				item: v.id('ingredients'),
+				core: v.optional(v.boolean()),
 				forms: v.optional(v.array(v.id('ingredientForm'))),
 				quantity: v.optional(
 					v.object({

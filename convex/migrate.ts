@@ -95,6 +95,7 @@ export const importIngredients = action({
 		ingredients: v.array(
 			v.object({
 				item: v.string(),
+				proteinPer100g: v.optional(v.number()),
 			})
 		),
 	},
@@ -111,6 +112,7 @@ export const importIngredients = action({
 				internal.recipes.createIngredient,
 				{
 					item: trimmedName,
+					proteinPer100g: ingredient.proteinPer100g,
 				}
 			);
 			ingredientMap[trimmedName] = id;
@@ -129,6 +131,7 @@ export const importRecipes = action({
 				ingredients: v.array(
 					v.object({
 						item: v.string(),
+						core: v.optional(v.boolean()),
 						forms: v.optional(v.array(v.string())), // Array of form names (strings)
 						quantity: v.optional(
 							v.object({
@@ -151,6 +154,7 @@ export const importRecipes = action({
 			// Convert ingredient names to IDs and form names to form IDs
 			const ingredientRefs: Array<{
 				item: Id<'ingredients'>;
+				core?: boolean;
 				forms?: Id<'ingredientForm'>[];
 				quantity?: { amount?: number; unit?: Id<'units'> };
 			}> = [];
@@ -216,6 +220,7 @@ export const importRecipes = action({
 
 				ingredientRefs.push({
 					item: ingredientId as Id<'ingredients'>,
+					core: ing.core,
 					forms: formIds,
 					quantity: ing.quantity
 						? {
