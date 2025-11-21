@@ -19,7 +19,6 @@ import {
 	SheetTrigger,
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 
 type SelectedForms = Record<string, string[]>;
 
@@ -390,25 +389,6 @@ export default function Home() {
 		[]
 	);
 
-	const formatAmount = (
-		amount: number | null | undefined,
-		scaleFactor: number = 1
-	): string => {
-		if (amount === undefined || amount === null) {
-			return '';
-		}
-		if (!Number.isFinite(amount)) {
-			return '';
-		}
-		const scaled = amount * scaleFactor;
-		if (Number.isInteger(scaled)) {
-			return String(scaled);
-		}
-		return Number(scaled.toFixed(2))
-			.toString()
-			.replace(/\.?0+$/, '');
-	};
-
 	// Get selected recipes for pairing
 	const pairedRecipes = useMemo(() => {
 		if (selectedRecipes.size === 0) {
@@ -611,382 +591,62 @@ export default function Home() {
 										? recipe.ingredients
 										: [];
 
-									const recipeCustomQuantities =
-										customQuantities[recipe._id] ?? {};
-									const hasCustomQuantity =
-										Object.keys(recipeCustomQuantities)
-											.length > 0;
-
-									let customScaleFactor: number | null = null;
-									if (hasCustomQuantity) {
-										for (
-											let i = 0;
-											i < ingredientItems.length;
-											i++
-										) {
-											const ingredient =
-												ingredientItems[i];
-											if (
-												ingredient.core &&
-												recipeCustomQuantities[i] !==
-													undefined
-											) {
-												const originalAmount =
-													ingredient.quantity?.amount;
-												const customAmount =
-													recipeCustomQuantities[i];
-												if (
-													typeof originalAmount ===
-														'number' &&
-													originalAmount > 0 &&
-													customAmount > 0
-												) {
-													customScaleFactor =
-														customAmount /
-														originalAmount;
-													break;
-												}
-											}
-										}
-									}
-
-									const scaleFactor =
-										customScaleFactor ?? servings;
 									const totalProtein = calculateTotalProtein(
 										ingredientItems,
-										scaleFactor
+										servings
 									);
-									const instructionSteps = recipe.instructions
-										.split('\n')
-										.map((line) => line.trim())
-										.filter(Boolean);
+
+									// Get core ingredient names
+									const coreIngredients = ingredientItems
+										.filter((ing) => ing.core)
+										.map((ing) => ing.item);
 
 									return (
 										<Card
 											key={recipe._id}
 											className='border-primary border-2'>
 											<CardHeader>
-												<div>
-													<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-														<div className='flex items-center gap-3'>
-															<Checkbox
-																checked={true}
-																onCheckedChange={() =>
-																	toggleRecipeSelection(
-																		recipe._id
-																	)
-																}
-																className='shrink-0'
-															/>
-															<CardTitle className='text-2xl'>
+												<div className='flex items-center gap-3'>
+													<Checkbox
+														checked={true}
+														onCheckedChange={() =>
+															toggleRecipeSelection(
+																recipe._id
+															)
+														}
+														className='shrink-0'
+													/>
+													<div className='flex-1'>
+														<CardTitle className='text-2xl'>
+															<Link
+																href={`/recipe/${recipe._id}`}
+																className='hover:underline'>
 																{recipe.title}
-															</CardTitle>
-														</div>
-														<div className='flex items-center gap-2'>
-															<span className='text-sm text-muted-foreground whitespace-nowrap'>
-																Servings:
-															</span>
-															<div className='flex gap-1'>
-																{[
-																	1, 2, 3, 4,
-																	5, 6,
-																].map((num) => (
-																	<Button
-																		key={
-																			num
-																		}
-																		variant={
-																			servings ===
-																			num
-																				? 'default'
-																				: 'outline'
-																		}
-																		size='sm'
-																		onClick={() => {
-																			setServings(
-																				num
-																			);
-																			setCustomQuantities(
-																				{}
-																			);
-																		}}
-																		className={`min-w-10 ${
-																			hasCustomQuantity
-																				? 'opacity-50 cursor-pointer'
-																				: ''
-																		}`}
-																		title={
-																			hasCustomQuantity
-																				? 'Click to clear custom quantity and use serving size'
-																				: undefined
-																		}>
-																		{num}
-																	</Button>
-																))}
-															</div>
-														</div>
+															</Link>
+														</CardTitle>
+														{coreIngredients.length >
+															0 && (
+															<p className='text-sm text-muted-foreground mt-1'>
+																Core
+																ingredients:{' '}
+																{coreIngredients.join(
+																	', '
+																)}
+															</p>
+														)}
+														{totalProtein !==
+															null && (
+															<p className='text-sm text-muted-foreground mt-1'>
+																Total protein:{' '}
+																{totalProtein.toFixed(
+																	1
+																)}
+																g
+															</p>
+														)}
 													</div>
-													{totalProtein !== null && (
-														<p className='text-sm text-muted-foreground mt-1'>
-															Total protein:{' '}
-															{totalProtein.toFixed(
-																1
-															)}
-															g
-															<span className='text-xs ml-1'>
-																(from core
-																ingredients)
-															</span>
-														</p>
-													)}
 												</div>
 											</CardHeader>
-											<CardContent className='space-y-4'>
-												{ingredientItems.length > 0 && (
-													<section>
-														<h3 className='text-lg font-medium mb-2'>
-															Ingredients
-														</h3>
-														<ul className='list-disc pl-5 space-y-1 text-sm'>
-															{ingredientItems.map(
-																(
-																	ingredient,
-																	index
-																) => {
-																	const amount =
-																		ingredient
-																			.quantity
-																			?.amount ??
-																		undefined;
-																	const unit =
-																		ingredient.quantity?.unit?.trim() ??
-																		'';
-																	const formattedAmount =
-																		formatAmount(
-																			amount,
-																			scaleFactor
-																		);
-																	const quantityText =
-																		[
-																			formattedAmount,
-																			unit,
-																		]
-																			.filter(
-																				(
-																					value
-																				) =>
-																					value &&
-																					value.length >
-																						0
-																			)
-																			.join(
-																				' '
-																			);
-
-																	const formsText =
-																		ingredient.forms &&
-																		ingredient
-																			.forms
-																			.length >
-																			0
-																			? ` (${ingredient.forms.join(
-																					', '
-																			  )})`
-																			: '';
-
-																	const customAmount =
-																		recipeCustomQuantities[
-																			index
-																		];
-																	const showCustomInput =
-																		ingredient.core &&
-																		typeof amount ===
-																			'number';
-
-																	return (
-																		<li
-																			key={`${recipe._id}-${index}-${ingredient.item}`}
-																			className='space-y-1'>
-																			<div className='flex items-start gap-2'>
-																				<span className='flex-1'>
-																					{quantityText.length >
-																						0 && (
-																						<span className='font-medium'>
-																							{
-																								quantityText
-																							}
-																						</span>
-																					)}
-																					{quantityText.length >
-																						0 &&
-																					ingredient.item
-																						? ' — '
-																						: ' '}
-																					<span>
-																						{
-																							ingredient.item
-																						}
-																						{ingredient.core && (
-																							<span className='ml-1 text-xs font-semibold text-primary'>
-																								(core)
-																							</span>
-																						)}
-																						{formsText && (
-																							<span className='text-muted-foreground italic'>
-																								{
-																									formsText
-																								}
-																							</span>
-																						)}
-																					</span>
-																				</span>
-																			</div>
-																			{showCustomInput && (
-																				<div className='flex items-center gap-2 pl-5'>
-																					<label
-																						htmlFor={`custom-${recipe._id}-${index}`}
-																						className='text-xs text-muted-foreground whitespace-nowrap'>
-																						Custom{' '}
-																						{
-																							unit
-																						}
-
-																						:
-																					</label>
-																					<Input
-																						id={`custom-${recipe._id}-${index}`}
-																						type='number'
-																						min='0'
-																						step='0.1'
-																						value={
-																							customAmount ??
-																							''
-																						}
-																						onChange={(
-																							e
-																						) => {
-																							const value =
-																								parseFloat(
-																									e
-																										.target
-																										.value
-																								);
-																							if (
-																								!Number.isNaN(
-																									value
-																								) &&
-																								value >
-																									0
-																							) {
-																								setCustomQuantities(
-																									(
-																										prev
-																									) => ({
-																										...prev,
-																										[recipe._id]:
-																											{
-																												[index]:
-																													value,
-																											},
-																									})
-																								);
-																								setServings(
-																									1
-																								);
-																							} else if (
-																								e
-																									.target
-																									.value ===
-																								''
-																							) {
-																								setCustomQuantities(
-																									(
-																										prev
-																									) => {
-																										const next =
-																											{
-																												...prev,
-																											};
-																										if (
-																											next[
-																												recipe
-																													._id
-																											]
-																										) {
-																											const recipeQuantities =
-																												{
-																													...next[
-																														recipe
-																															._id
-																													],
-																												};
-																											delete recipeQuantities[
-																												index
-																											];
-																											if (
-																												Object.keys(
-																													recipeQuantities
-																												)
-																													.length ===
-																												0
-																											) {
-																												delete next[
-																													recipe
-																														._id
-																												];
-																											} else {
-																												next[
-																													recipe._id
-																												] =
-																													recipeQuantities;
-																											}
-																										}
-																										return next;
-																									}
-																								);
-																							}
-																						}}
-																						placeholder={String(
-																							amount
-																						)}
-																						className='w-24 text-xs'
-																						inputMode='decimal'
-																					/>
-																				</div>
-																			)}
-																		</li>
-																	);
-																}
-															)}
-														</ul>
-													</section>
-												)}
-												{instructionSteps.length >
-													0 && (
-													<>
-														<Separator />
-														<section>
-															<h3 className='text-lg font-medium mb-2'>
-																Instructions
-															</h3>
-															<ol className='list-decimal pl-5 space-y-1 text-sm'>
-																{instructionSteps.map(
-																	(step) => (
-																		<li
-																			key={
-																				step
-																			}>
-																			{
-																				step
-																			}
-																		</li>
-																	)
-																)}
-															</ol>
-														</section>
-													</>
-												)}
-											</CardContent>
 										</Card>
 									);
 								})}
@@ -1054,56 +714,16 @@ export default function Home() {
 									? recipe.ingredients
 									: [];
 
-								// Check if there's a custom quantity set for this recipe
-								const recipeCustomQuantities =
-									customQuantities[recipe._id] ?? {};
-								const hasCustomQuantity =
-									Object.keys(recipeCustomQuantities).length >
-									0;
-
-								// Find first core ingredient with custom quantity to calculate scale
-								let customScaleFactor: number | null = null;
-								if (hasCustomQuantity) {
-									for (
-										let i = 0;
-										i < ingredientItems.length;
-										i++
-									) {
-										const ingredient = ingredientItems[i];
-										if (
-											ingredient.core &&
-											recipeCustomQuantities[i] !==
-												undefined
-										) {
-											const originalAmount =
-												ingredient.quantity?.amount;
-											const customAmount =
-												recipeCustomQuantities[i];
-											if (
-												typeof originalAmount ===
-													'number' &&
-												originalAmount > 0 &&
-												customAmount > 0
-											) {
-												customScaleFactor =
-													customAmount /
-													originalAmount;
-												break;
-											}
-										}
-									}
-								}
-
-								const scaleFactor =
-									customScaleFactor ?? servings;
 								const totalProtein = calculateTotalProtein(
 									ingredientItems,
-									scaleFactor
+									servings
 								);
-								const instructionSteps = recipe.instructions
-									.split('\n')
-									.map((line) => line.trim())
-									.filter(Boolean);
+
+								// Get core ingredient names
+								const coreIngredients = ingredientItems
+									.filter((ing) => ing.core)
+									.map((ing) => ing.item);
+
 								const isSelected = selectedRecipes.has(
 									recipe._id
 								);
@@ -1116,326 +736,45 @@ export default function Home() {
 												: ''
 										}>
 										<CardHeader>
-											<div>
-												<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-													<div className='flex items-center gap-3'>
-														<Checkbox
-															checked={isSelected}
-															onCheckedChange={() =>
-																toggleRecipeSelection(
-																	recipe._id
-																)
-															}
-															className='shrink-0'
-														/>
-														<CardTitle className='text-2xl'>
+											<div className='flex items-center gap-3'>
+												<Checkbox
+													checked={isSelected}
+													onCheckedChange={() =>
+														toggleRecipeSelection(
+															recipe._id
+														)
+													}
+													className='shrink-0'
+												/>
+												<div className='flex-1'>
+													<CardTitle className='text-2xl'>
+														<Link
+															href={`/recipe/${recipe._id}`}
+															className='hover:underline'>
 															{recipe.title}
-														</CardTitle>
-													</div>
-													<div className='flex items-center gap-2'>
-														<span className='text-sm text-muted-foreground whitespace-nowrap'>
-															Servings:
-														</span>
-														<div className='flex gap-1'>
-															{[
-																1, 2, 3, 4, 5,
-																6,
-															].map((num) => (
-																<Button
-																	key={num}
-																	variant={
-																		servings ===
-																		num
-																			? 'default'
-																			: 'outline'
-																	}
-																	size='sm'
-																	onClick={() => {
-																		setServings(
-																			num
-																		);
-																		// Clear all custom quantities when servings is selected
-																		setCustomQuantities(
-																			{}
-																		);
-																	}}
-																	className={`min-w-10 ${
-																		hasCustomQuantity
-																			? 'opacity-50 cursor-pointer'
-																			: ''
-																	}`}
-																	title={
-																		hasCustomQuantity
-																			? 'Click to clear custom quantity and use serving size'
-																			: undefined
-																	}>
-																	{num}
-																</Button>
-															))}
-														</div>
-													</div>
+														</Link>
+													</CardTitle>
+													{coreIngredients.length >
+														0 && (
+														<p className='text-sm text-muted-foreground mt-1'>
+															Core ingredients:{' '}
+															{coreIngredients.join(
+																', '
+															)}
+														</p>
+													)}
+													{totalProtein !== null && (
+														<p className='text-sm text-muted-foreground mt-1'>
+															Total protein:{' '}
+															{totalProtein.toFixed(
+																1
+															)}
+															g
+														</p>
+													)}
 												</div>
-												{totalProtein !== null && (
-													<p className='text-sm text-muted-foreground mt-1'>
-														Total protein:{' '}
-														{totalProtein.toFixed(
-															1
-														)}
-														g
-														<span className='text-xs ml-1'>
-															(from core
-															ingredients)
-														</span>
-													</p>
-												)}
 											</div>
 										</CardHeader>
-										<CardContent className='space-y-4'>
-											{ingredientItems.length > 0 && (
-												<section>
-													<h3 className='text-lg font-medium mb-2'>
-														Ingredients
-													</h3>
-													<ul className='list-disc pl-5 space-y-1 text-sm'>
-														{ingredientItems.map(
-															(
-																ingredient,
-																index
-															) => {
-																const amount =
-																	ingredient
-																		.quantity
-																		?.amount ??
-																	undefined;
-																const unit =
-																	ingredient.quantity?.unit?.trim() ??
-																	'';
-																const formattedAmount =
-																	formatAmount(
-																		amount,
-																		scaleFactor
-																	);
-																const quantityText =
-																	[
-																		formattedAmount,
-																		unit,
-																	]
-																		.filter(
-																			(
-																				value
-																			) =>
-																				value &&
-																				value.length >
-																					0
-																		)
-																		.join(
-																			' '
-																		);
-
-																const formsText =
-																	ingredient.forms &&
-																	ingredient
-																		.forms
-																		.length >
-																		0
-																		? ` (${ingredient.forms.join(
-																				', '
-																		  )})`
-																		: '';
-
-																const customAmount =
-																	recipeCustomQuantities[
-																		index
-																	];
-																const showCustomInput =
-																	ingredient.core &&
-																	typeof amount ===
-																		'number';
-
-																return (
-																	<li
-																		key={`${recipe._id}-${index}-${ingredient.item}`}
-																		className='space-y-1'>
-																		<div className='flex items-start gap-2'>
-																			<span className='flex-1'>
-																				{quantityText.length >
-																					0 && (
-																					<span className='font-medium'>
-																						{
-																							quantityText
-																						}
-																					</span>
-																				)}
-																				{quantityText.length >
-																					0 &&
-																				ingredient.item
-																					? ' — '
-																					: ' '}
-																				<span>
-																					{
-																						ingredient.item
-																					}
-																					{ingredient.core && (
-																						<span className='ml-1 text-xs font-semibold text-primary'>
-																							(core)
-																						</span>
-																					)}
-																					{formsText && (
-																						<span className='text-muted-foreground italic'>
-																							{
-																								formsText
-																							}
-																						</span>
-																					)}
-																				</span>
-																			</span>
-																		</div>
-																		{showCustomInput && (
-																			<div className='flex items-center gap-2 pl-5'>
-																				<label
-																					htmlFor={`custom-${recipe._id}-${index}`}
-																					className='text-xs text-muted-foreground whitespace-nowrap'>
-																					Custom{' '}
-																					{
-																						unit
-																					}
-
-																					:
-																				</label>
-																				<Input
-																					id={`custom-${recipe._id}-${index}`}
-																					type='number'
-																					min='0'
-																					step='0.1'
-																					value={
-																						customAmount ??
-																						''
-																					}
-																					onChange={(
-																						e
-																					) => {
-																						const value =
-																							parseFloat(
-																								e
-																									.target
-																									.value
-																							);
-																						if (
-																							!Number.isNaN(
-																								value
-																							) &&
-																							value >
-																								0
-																						) {
-																							// Only allow one core ingredient to have custom quantity at a time
-																							setCustomQuantities(
-																								(
-																									prev
-																								) => ({
-																									...prev,
-																									[recipe._id]:
-																										{
-																											// Clear all other custom quantities, only keep this one
-																											[index]:
-																												value,
-																										},
-																								})
-																							);
-																							// Reset servings when custom quantity is set
-																							setServings(
-																								1
-																							);
-																						} else if (
-																							e
-																								.target
-																								.value ===
-																							''
-																						) {
-																							setCustomQuantities(
-																								(
-																									prev
-																								) => {
-																									const next =
-																										{
-																											...prev,
-																										};
-																									if (
-																										next[
-																											recipe
-																												._id
-																										]
-																									) {
-																										const recipeQuantities =
-																											{
-																												...next[
-																													recipe
-																														._id
-																												],
-																											};
-																										delete recipeQuantities[
-																											index
-																										];
-																										if (
-																											Object.keys(
-																												recipeQuantities
-																											)
-																												.length ===
-																											0
-																										) {
-																											delete next[
-																												recipe
-																													._id
-																											];
-																										} else {
-																											next[
-																												recipe._id
-																											] =
-																												recipeQuantities;
-																										}
-																									}
-																									return next;
-																								}
-																							);
-																						}
-																					}}
-																					placeholder={String(
-																						amount
-																					)}
-																					className='w-24 text-xs'
-																					inputMode='decimal'
-																				/>
-																			</div>
-																		)}
-																	</li>
-																);
-															}
-														)}
-													</ul>
-												</section>
-											)}
-											{instructionSteps.length > 0 && (
-												<>
-													<Separator />
-													<section>
-														<h3 className='text-lg font-medium mb-2'>
-															Instructions
-														</h3>
-														<ol className='list-decimal pl-5 space-y-1 text-sm'>
-															{instructionSteps.map(
-																(step) => (
-																	<li
-																		key={
-																			step
-																		}>
-																		{step}
-																	</li>
-																)
-															)}
-														</ol>
-													</section>
-												</>
-											)}
-										</CardContent>
 									</Card>
 								);
 							})}

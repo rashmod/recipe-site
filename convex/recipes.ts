@@ -5,7 +5,7 @@ import {
 	internalMutation,
 	internalQuery,
 } from './_generated/server';
-import type { MutationCtx } from './_generated/server';
+import type { MutationCtx, QueryCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 import { requireAdmin } from './_utils';
 
@@ -111,6 +111,51 @@ async function getOrCreateUnit(
 	return await ctx.db.insert('units', { unit: trimmedName });
 }
 
+// Helper function to populate recipe ingredients
+async function populateRecipeIngredients(
+	ctx: QueryCtx | MutationCtx,
+	recipe: {
+		ingredients: Array<{
+			item: Id<'ingredients'>;
+			core?: boolean;
+			forms?: Id<'ingredientForm'>[];
+			quantity?: {
+				amount?: number;
+				unit?: Id<'units'>;
+			};
+		}>;
+	}
+) {
+	return await Promise.all(
+		recipe.ingredients.map(async (ing) => {
+			const ingredient = await ctx.db.get(ing.item);
+			const forms = ing.forms
+				? await Promise.all(
+						ing.forms.map(async (formId: Id<'ingredientForm'>) => {
+							const form = await ctx.db.get(formId);
+							return form?.form ?? 'Unknown';
+						})
+				  )
+				: undefined;
+			const unit = ing.quantity?.unit
+				? (await ctx.db.get(ing.quantity.unit))?.unit ?? null
+				: null;
+			return {
+				item: ingredient?.item ?? 'Unknown',
+				core: ing.core ?? false,
+				proteinPer100g: ingredient?.proteinPer100g ?? null,
+				forms: forms,
+				quantity: ing.quantity
+					? {
+							amount: ing.quantity.amount,
+							unit: unit,
+					  }
+					: undefined,
+			};
+		})
+	);
+}
+
 export const list = query({
 	args: {},
 	handler: async (ctx) => {
@@ -119,34 +164,9 @@ export const list = query({
 		// Populate ingredient details
 		return await Promise.all(
 			recipes.map(async (recipe) => {
-				const populatedIngredients = await Promise.all(
-					recipe.ingredients.map(async (ing) => {
-						const ingredient = await ctx.db.get(ing.item);
-						const forms = ing.forms
-							? await Promise.all(
-									ing.forms.map(async (formId) => {
-										const form = await ctx.db.get(formId);
-										return form?.form ?? 'Unknown';
-									})
-							  )
-							: undefined;
-						const unit = ing.quantity?.unit
-							? (await ctx.db.get(ing.quantity.unit))?.unit ??
-							  null
-							: null;
-						return {
-							item: ingredient?.item ?? 'Unknown',
-							core: ing.core ?? false,
-							proteinPer100g: ingredient?.proteinPer100g ?? null,
-							forms: forms,
-							quantity: ing.quantity
-								? {
-										amount: ing.quantity.amount,
-										unit: unit,
-								  }
-								: undefined,
-						};
-					})
+				const populatedIngredients = await populateRecipeIngredients(
+					ctx,
+					recipe
 				);
 				return {
 					...recipe,
@@ -154,6 +174,27 @@ export const list = query({
 				};
 			})
 		);
+	},
+});
+
+export const get = query({
+	args: {
+		id: v.id('recipes'),
+	},
+	handler: async (ctx, args) => {
+		const recipe = await ctx.db.get(args.id);
+		if (!recipe) {
+			return null;
+		}
+
+		const populatedIngredients = await populateRecipeIngredients(
+			ctx,
+			recipe
+		);
+		return {
+			...recipe,
+			ingredients: populatedIngredients,
+		};
 	},
 });
 

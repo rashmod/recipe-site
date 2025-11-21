@@ -141,10 +141,10 @@ export const importRecipes = action({
 				instructions: v.string(),
 			})
 		),
-		ingredientMap: v.any(), // Map of ingredient name -> ID
+		ingredientMap: v.record(v.string(), v.string()), // Map of ingredient name -> ID
 	},
 	handler: async (ctx, args) => {
-		const ingredientMap = args.ingredientMap as Record<string, string>;
+		const ingredientMap = args.ingredientMap;
 		const results: Array<{ title: string; id: string }> = [];
 
 		for (const recipe of args.recipes) {
@@ -258,10 +258,10 @@ export const importPairings = action({
 				recipeTitles: v.array(v.string()), // Array of recipe titles
 			})
 		),
-		recipeMap: v.any(), // Map of recipe title -> ID
+		recipeMap: v.record(v.string(), v.string()), // Map of recipe title -> ID
 	},
 	handler: async (ctx, args) => {
-		const recipeMap = args.recipeMap as Record<string, string>;
+		const recipeMap = args.recipeMap;
 		const results: Array<{ recipeTitles: string[]; id: string }> = [];
 
 		for (const pairing of args.pairings) {
