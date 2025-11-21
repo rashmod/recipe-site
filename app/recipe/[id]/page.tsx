@@ -11,11 +11,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
 
 export default function RecipePage() {
 	const params = useParams();
 	const recipeId = params.id as Id<'recipes'>;
 	const recipe = useQuery(api.recipes.get, { id: recipeId });
+	const pairings = useQuery(api.recipes.getPairingsForRecipe, {
+		recipeId: recipeId,
+	});
 	const [servings, setServings] = useState<number>(1);
 	const [customQuantities, setCustomQuantities] = useState<
 		Record<number, number>
@@ -376,6 +380,97 @@ export default function RecipePage() {
 							)}
 						</CardContent>
 					</Card>
+
+					{/* Recipe Pairings Section */}
+					{pairings && pairings.length > 0 && (
+						<>
+							<Separator className='my-6' />
+							<Card >
+								<CardHeader>
+									<CardTitle className='text-xl'>
+										Paired Recipes
+									</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<div className='space-y-6'>
+										{pairings.map((pairing) => (
+											<div
+												key={pairing._id}
+												className='space-y-3'>
+												<Label className='text-sm font-medium text-muted-foreground'>
+													This recipe pairs well with:
+												</Label>
+												<div className='flex flex-wrap gap-2'>
+													{pairing.otherRecipes.map(
+														(otherRecipe) => {
+															const ingredientItems =
+																Array.isArray(
+																	otherRecipe.ingredients
+																)
+																	? otherRecipe.ingredients
+																	: [];
+															const totalProtein =
+																calculateTotalProtein(
+																	ingredientItems,
+																	servings
+																);
+															const coreIngredients =
+																ingredientItems
+																	.filter(
+																		(ing) =>
+																			ing.core
+																	)
+																	.map(
+																		(ing) =>
+																			ing.item
+																	);
+
+															return (
+																<Card
+																	key={
+																		otherRecipe._id
+																	}
+																	className='py-1 hover:border-primary transition-colors'>
+																	<CardContent className='p-2.5'>
+																		<div className='space-y-1'>
+																			<Link
+																				href={`/recipe/${otherRecipe._id}`}
+																				className='text-sm font-medium hover:underline block'>
+																				{
+																					otherRecipe.title
+																				}
+																			</Link>
+																			{coreIngredients.length >
+																				0 && (
+																				<p className='text-xs text-muted-foreground'>
+																					{coreIngredients.join(
+																						', '
+																					)}
+																				</p>
+																			)}
+																			{totalProtein !==
+																				null && (
+																				<p className='text-xs text-muted-foreground'>
+																					{totalProtein.toFixed(
+																						1
+																					)}
+																					g protein
+																				</p>
+																			)}
+																		</div>
+																	</CardContent>
+																</Card>
+															);
+														}
+													)}
+												</div>
+											</div>
+										))}
+									</div>
+								</CardContent>
+							</Card>
+						</>
+					)}
 				</div>
 			</main>
 		</div>

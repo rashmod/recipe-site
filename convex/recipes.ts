@@ -647,6 +647,54 @@ export const listPairings = query({
 	},
 });
 
+export const getPairingsForRecipe = query({
+	args: {
+		recipeId: v.id('recipes'),
+	},
+	handler: async (ctx, args) => {
+		const allPairings = await ctx.db.query('recipePairings').collect();
+
+		// Filter pairings that include this recipe
+		const relevantPairings = allPairings.filter((pairing) =>
+			pairing.recipeIds.includes(args.recipeId)
+		);
+
+		// Populate recipe data for each pairing
+		const pairingsWithRecipes = await Promise.all(
+			relevantPairings.map(async (pairing) => {
+				const recipes = await Promise.all(
+					pairing.recipeIds.map(async (id) => {
+						const recipe = await ctx.db.get(id);
+						if (!recipe) return null;
+						const populatedIngredients =
+							await populateRecipeIngredients(ctx, recipe);
+						return {
+							...recipe,
+							ingredients: populatedIngredients,
+						};
+					})
+				);
+				const validRecipes = recipes.filter(
+					(r): r is NonNullable<typeof r> => r !== null
+				);
+
+				// Get other recipes in the pairing (excluding the current one)
+				const otherRecipes = validRecipes.filter(
+					(r) => r._id !== args.recipeId
+				);
+
+				return {
+					...pairing,
+					recipes: validRecipes,
+					otherRecipes: otherRecipes,
+				};
+			})
+		);
+
+		return pairingsWithRecipes;
+	},
+});
+
 export const savePairing = mutation({
 	args: {
 		recipeIds: v.array(v.id('recipes')),
